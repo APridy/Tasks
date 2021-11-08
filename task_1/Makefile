@@ -6,6 +6,7 @@ all:
 
 clean:
 	rm hello *.o *.so
+
 libs:
 	gcc -c -fPIC libhello.c
 	gcc -shared -o libhello.so libhello.o
