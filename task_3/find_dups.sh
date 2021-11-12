@@ -58,32 +58,32 @@ if [[ "$MODE" == "${MODES[0]}" ]]; then
 	done
 else	
 	GROUPS_COUNT=0
-    for filepath in $FILES
-    do  
-        if [[ ! " ${KNOWN_MD5SUMS[*]} " =~ " $(md5sum $filepath | cut -d" " -f1) " ]]; then
-            MATCHES=0
-            for cmp_filepath in $FILES
+	for filepath in $FILES
+	do  
+		if [[ ! " ${KNOWN_MD5SUMS[*]} " =~ " $(md5sum $filepath | cut -d" " -f1) " ]]; then
+			MATCHES=0
+			for cmp_filepath in $FILES
 			do
-                if [[ $(md5sum $filepath | cut -d" " -f1) == $(md5sum $cmp_filepath | cut -d" " -f1) ]]; then
-                    ((MATCHES=MATCHES+1))
-                    case $MATCHES in          
-                    1)                  
-                        KNOWN_MD5SUMS+="$(md5sum $filepath | cut -d" " -f1) "
-                        ;;
-                    2) 	
+				if [[ $(md5sum $filepath | cut -d" " -f1) == $(md5sum $cmp_filepath | cut -d" " -f1) ]]; then
+					((MATCHES=MATCHES+1))
+					case $MATCHES in          
+					1)                  
+						KNOWN_MD5SUMS+="$(md5sum $filepath | cut -d" " -f1) "
+						;;
+					2) 	
 						((GROUPS_COUNT=GROUPS_COUNT+1))				
 						echo -e "\n""###"-------Group $GROUPS_COUNT-----------"###" >> ./$SCRIPTNAME
-                        echo "#"rm "\""$filepath"\"" >> ./$SCRIPTNAME
-                        echo "#"rm "\""$cmp_filepath"\"" >> ./$SCRIPTNAME
-                        ;;                      
-                    *)                  
-                        echo "#"rm "\""$cmp_filepath"\"" >> ./$SCRIPTNAME
-                        ;;
-                    esac
-                fi
+						echo "#"rm "\""$filepath"\"" >> ./$SCRIPTNAME
+						echo "#"rm "\""$cmp_filepath"\"" >> ./$SCRIPTNAME
+						;;                      
+					*)                  
+						echo "#"rm "\""$cmp_filepath"\"" >> ./$SCRIPTNAME
+						;;
+					esac
+				fi
 			done
-        fi
-    done
+		fi
+	done
 fi
 
 IFS="$OIFS"
