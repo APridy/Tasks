@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include "libhello.h"
-#include "libgoodbye.h"
+#include "lib/libhello.h"
+#include "lib/libgoodbye.h"
 
 
 int main() {
