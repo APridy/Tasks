@@ -1,4 +1,4 @@
-all: hello.c ./stlibs/*.c ./stlibs/*.h ./dynlibs/*.c ./dynlibs/*.h 
+all:
 	gcc -c ./stlibs/*.c #compile static libraries
 	ar ruv stlib.a *.o #archive .o files
 	ranlib stlib.a #create map file
@@ -11,7 +11,7 @@ all: hello.c ./stlibs/*.c ./stlibs/*.h ./dynlibs/*.c ./dynlibs/*.h
 clean:
 	rm hello *.so *.a
 
-libs: ./stlibs/*.c ./stlibs/*.h ./dynlibs/*.c ./dynlibs/*.h
+libs:
 	gcc -c ./stlibs/*.c #compile static libraries
 	ar ruv stlib.a *.o #archive .o files
 	ranlib stlib.a #create map file
