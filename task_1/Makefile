@@ -1,4 +1,4 @@
-all: hello.c ./lib/*.c ./lib/*.h
+all:
 	gcc -c ./lib/*.c #compile libraries
 	ar ruv lib.a *.o #archive .o files
 	ranlib lib.a #create map file
@@ -7,7 +7,7 @@ all: hello.c ./lib/*.c ./lib/*.h
 clean:
 	rm hello *.o *.a
 
-libs: ./lib/*.c ./lib/*.h
+libs:
 	gcc -c ./lib/*.c
 	ar ruv lib.a *.o
 	ranlib lib.a
