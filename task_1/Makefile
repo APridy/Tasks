@@ -25,4 +25,4 @@ $(LIBARCHIVE): $(LIBOBJECTS)
 	ranlib $@
 
 $(LIBOBJECTS) : $(LIBSOURCES)
-	$(CC) -c $^ #compile libraries
+	$(CC) -c $^
