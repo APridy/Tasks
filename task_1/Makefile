@@ -1,21 +1,38 @@
-all:
-	gcc -c ./stlibs/*.c #compile static libraries
-	ar ruv stlib.a *.o #archive .o files
-	ranlib stlib.a #create map file
-	rm *.o
-	gcc -c -fPIC ./dynlibs/*.c #compile dynamic libraries
-	gcc -shared -o libdyn.so *.o #merge them into shared library
-	gcc -L./ hello.c stlib.a -ldyn -o hello #compile program
-	rm *.o
+CC = gcc
+TARGET = hello
+SOURCE = hello.c 
+STLIB = stlib.a
+DYNLIB = dyn
+DYNLIB_SRC = libhello.c 
+STLIB_SRC = libgoodbye.c
+DYNLIB_SRCDIR = ./dynlibs/
+STLIB_SRCDIR = ./stlibs/
+DYNLIB_OBJ = $(patsubst %.c,%.o,$(DYNLIB_SRC))
+STLIB_OBJ = $(patsubst %.c,%.o,$(STLIB_SRC))
+
+all: $(TARGET)
 
 clean:
-	rm hello *.so *.a
+	rm $(TARGET) lib$(DYNLIB).so $(STLIB) $(DYNLIB_OBJ) $(STLIB_OBJ)
 
-libs:
-	gcc -c ./stlibs/*.c #compile static libraries
-	ar ruv stlib.a *.o #archive .o files
-	ranlib stlib.a #create map file
-	rm *.o
-	gcc -c -fPIC ./dynlibs/*.c #compile dynamic libraries
-	gcc -shared -o libdyn.so *.o #merge them into shared library
-	rm *.o
+$(TARGET): libs
+	$(CC) -L./ $(SOURCE) $(STLIB) -l$(DYNLIB) -o $(TARGET)
+
+libs: $(STLIB) $(DYNLIB)
+
+$(STLIB): $(STLIB_OBJ)
+	ar ruv $@ $^
+	ranlib $@
+
+$(DYNLIB): $(DYNLIB_OBJ) 
+	$(CC) -shared -o lib$(DYNLIB).so $(DYNLIB_OBJ)	
+
+
+%.o : $(STLIB_SRCDIR)%.c
+	$(CC) -c $^
+
+%.o : $(DYNLIB_SRCDIR)%.c
+	$(CC) -c -fPIC $^
+
+
+

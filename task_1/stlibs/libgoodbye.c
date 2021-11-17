@@ -1,3 +1,6 @@
+#include <stdio.h>
 #include "libgoodbye.h"
 
-const char goodbye_world[] = "Goodbye World!\n";
+void print_goodbye_world() {
+	printf("Goodbye World!\n");
+}
