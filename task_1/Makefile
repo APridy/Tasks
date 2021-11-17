@@ -23,16 +23,12 @@ libs: $(STLIB) $(DYNLIB)
 $(STLIB): $(STLIB_OBJ)
 	ar ruv $@ $^
 	ranlib $@
-
+	
 $(DYNLIB): $(DYNLIB_OBJ) 
-	$(CC) -shared -o lib$(DYNLIB).so $(DYNLIB_OBJ)	
-
+	$(CC) -shared -o lib$(DYNLIB).so $(DYNLIB_OBJ)
 
 %.o : $(STLIB_SRCDIR)%.c
 	$(CC) -c $^
 
 %.o : $(DYNLIB_SRCDIR)%.c
 	$(CC) -c -fPIC $^
-
-
-
