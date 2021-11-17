@@ -1,6 +1,6 @@
 #ifndef LIBGOODBYE_INCLUDED
 #define LIBGOODBYE_INCLUDED
 
-const char goodbye_world[16];
+void print_goodbye_world();
 
 #endif

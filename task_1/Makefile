@@ -1,13 +1,28 @@
-all:
-	gcc -c ./lib/*.c #compile libraries
-	ar ruv lib.a *.o #archive .o files
-	ranlib lib.a #create map file
-	gcc -o hello hello.c lib.a #compile program
+CC = gcc
+
+TARGET = hello
+
+SOURCE = hello.c 
+
+LIBARCHIVE = lib.a
+
+LIBSOURCES = ./lib/*.c
+
+LIBOBJECTS = ./*.o
+
+all: $(TARGET)
 
 clean:
-	rm hello *.o *.a
+	rm $(TARGET) $(LIBOBJECTS) $(LIBARCHIVE)
 
-libs:
-	gcc -c ./lib/*.c
-	ar ruv lib.a *.o
-	ranlib lib.a
+$(TARGET): libs
+	$(CC) -o $(TARGET) $(SOURCE) $(LIBARCHIVE)
+
+libs: $(LIBARCHIVE)
+
+$(LIBARCHIVE): $(LIBOBJECTS)
+	ar ruv $@ $^
+	ranlib $@
+
+$(LIBOBJECTS) : $(LIBSOURCES)
+	$(CC) -c $^ #compile libraries

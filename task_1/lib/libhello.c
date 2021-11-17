@@ -1,3 +1,7 @@
+#include <stdio.h>
 #include "libhello.h"
 
-const char hello_world[] = "Hello World!\n";
+void print_hello_world() {
+        printf("Hello World!\n");
+}
+

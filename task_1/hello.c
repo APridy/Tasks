@@ -5,8 +5,8 @@
 
 int main() {
 
-	printf("%s",hello_world);
-	printf("%s",goodbye_world);
+	print_hello_world();
+	print_goodbye_world();
 	return 0;
 	
 }

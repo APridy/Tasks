@@ -1,7 +1,7 @@
 #ifndef LIBHELLO_INCLUDED
 #define LIBHELLO_INCLUDED
 
-const char hello_world[14];
+void print_hello_world();
 
 #endif
 
