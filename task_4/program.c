@@ -4,18 +4,21 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/shm.h>
+#include <sys/mman.h>
 #include <string.h>
-
-#define SEGMENT_SIZE 1024
+#include <signal.h>
+#include <stdbool.h>
+#include <pthread.h>
 
 int fd[2];
+int A_pid, B_pid, C_pid;
+bool value_changed = false;
 
-void process_A(int* sh_mem) {
+void process_A(void* shmem) {
 	close(fd[0]);
-	
-	printf("Process A\n");
 	int value;
 	char c;
+
 	while(1) {
 		if(scanf("%d", &value) == 1) { 
 			write(fd[1], &value, sizeof(int));
@@ -25,30 +28,68 @@ void process_A(int* sh_mem) {
 			while((c = getchar()) != '\n' && c != EOF);
 		};
 	}
+	printf("A ended\n");
+
 }
 
-void process_B(int* sh_mem) {
-	close(fd[1]);
+void handle_sigusr1_B() {
+	kill(getppid(), SIGUSR1);
+}
 
-        printf("Process B\n");
+void process_B(void* shmem) {
+	close(fd[1]);
 	int value;
+
+	struct sigaction sa = { 0 };
+	sa.sa_flags = SA_RESTART;
+	sa.sa_handler = &handle_sigusr1_B;
+	sigaction(SIGUSR1, &sa, NULL);
+
 	while(1) {
 		read(fd[0], &value, sizeof(int));
 		value *= value;
-		memmove(sh_mem, &value, sizeof(int));
+		memcpy(shmem, &value, sizeof(value));
 	}
+	printf("B ended\n");
 }
 
-void process_C(int* sh_mem) {
-        printf("Process C\n");
+void* process_C_1(void* shmem) {
+	int value = 0; 
 	while(1) {
-		sleep(1);
-		printf("I am alive! ");
-		printf("%d\n", *sh_mem);
+		if (value != *(int*)shmem) {
+			value_changed = true;
+			value = *(int*)shmem;
+		}
+
 	}
+	printf("C1 ended");
 }
 
-int create_process(void (*fun_ptr)(int*), int* sh_mem) {
+void* process_C_2(void* shmem) {
+	while(1) {
+                if(value_changed) {
+			value_changed = false;
+			printf("Value = %d\n", *(int*)shmem);
+			if(*(int*)shmem == 100) kill(B_pid, SIGUSR1);
+		}
+		else {
+			printf("I am alive!\n");
+		}
+		sleep(1);
+        }
+	printf("C2 ended\n");
+}
+
+void process_C(void* shmem) {
+	pthread_t c_1,c_2;	
+	pthread_create(&c_1, NULL, &process_C_1, shmem);	
+	pthread_create(&c_2, NULL, &process_C_2, shmem);	
+
+	while(1) {}
+	printf("C ended\n");
+}
+
+int create_process(void (*fun_ptr)(void*), void* shmem) {
 	int pid = fork();
 	switch (pid) {
 		case -1: {
@@ -56,34 +97,45 @@ int create_process(void (*fun_ptr)(int*), int* sh_mem) {
                 	return -1;	 
 		} break;
 		case 0: {
-			fun_ptr(sh_mem);
+			fun_ptr(shmem);
 			exit(0);	
 		} break;
 		default: return pid;	
 	}
 }
 
-int main() {
-	int A_pid, B_pid, C_pid, number = 0;		
-	int segment_id = shmget (IPC_PRIVATE, SEGMENT_SIZE,
-                        IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-	int *sh_mem = (int *) shmat(segment_id, NULL, 0);
+void handle_sigusr1_parent() {
+        kill(C_pid, SIGKILL);
+	kill(B_pid, SIGKILL);
+	kill(A_pid, SIGKILL);
+}
 
-	printf("Segment ID %d\n", segment_id);
-	printf("Attached at %p\n", sh_mem);
-	memmove(sh_mem, &number, sizeof(int));
+int main() {
+	int shmem_value = 0;		
+	
+	int protection = PROT_READ | PROT_WRITE;
+  	int visibility = MAP_SHARED | MAP_ANONYMOUS;
+	void* shmem = mmap(NULL, sizeof(int), protection, visibility, -1, 0);
+	
+	memcpy(shmem, &shmem_value, sizeof(shmem_value));
+	
+	struct sigaction sa = { 0 };
+        sa.sa_flags = SA_RESTART;
+        sa.sa_handler = &handle_sigusr1_parent;
+        sigaction(SIGUSR1, &sa, NULL);
 
 	if (pipe(fd) == -1) {
 		printf("An error occured with opening the pipe\n");
 		return 1;
 	}
 
-	A_pid = create_process(&process_A, sh_mem);
-	B_pid = create_process(&process_B, sh_mem);
-	C_pid = create_process(&process_C, sh_mem);
+	A_pid = create_process(&process_A, shmem);
+	B_pid = create_process(&process_B, shmem);
+	C_pid = create_process(&process_C, shmem);
 
 	wait(NULL);
+	
+	printf("Program execution is over\n");
 
 	return 0;
 }
-
