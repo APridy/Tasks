@@ -18,8 +18,8 @@ void process_A(void* shmem) {
 	int value;
 	char c;
 
-	while(1) {
-		if(scanf("%d", &value) == 1) { 
+	while (1) {
+		if (scanf("%d", &value) == 1) { 
 			write(fd[1], &value, sizeof(int));
 		}
 		else { 
@@ -42,7 +42,7 @@ void process_B(void* shmem) {
 	sa.sa_handler = &handle_sigusr1_B;
 	sigaction(SIGUSR1, &sa, NULL);
 
-	while(1) {
+	while (1) {
 		read(fd[0], &value, sizeof(int));
 		value *= value;
 		memcpy(shmem, &value, sizeof(value));
@@ -53,7 +53,7 @@ bool value_changed = false;
 
 void* process_C_1(void* shmem) {
 	int value = 0; 
-	while(1) {
+	while (1) {
 		if (value != *(int*)shmem) {
 			value_changed = true;
 			value = *(int*)shmem;
@@ -62,11 +62,11 @@ void* process_C_1(void* shmem) {
 }
 
 void* process_C_2(void* shmem) {
-	while(1) {
-                if(value_changed) {
+	while (1) {
+                if (value_changed) {
 			value_changed = false;
 			printf("Value = %d\n", *(int*)shmem);
-			if(*(int*)shmem == 100) kill(B_pid, SIGUSR1);
+			if (*(int*)shmem == 100) kill(B_pid, SIGUSR1);
 		}
 		else {
 			printf("I am alive!\n");
@@ -80,7 +80,7 @@ void process_C(void* shmem) {
 	pthread_create(&c_1, NULL, &process_C_1, shmem);	
 	pthread_create(&c_2, NULL, &process_C_2, shmem);	
 
-	while(1) {}
+	while (1) {}
 }
 
 int create_process(void (*fun_ptr)(void*), void* shmem) {
