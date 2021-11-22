@@ -12,7 +12,6 @@
 
 int fd[2];
 int A_pid, B_pid, C_pid;
-bool value_changed = false;
 
 void process_A(void* shmem) {
 	close(fd[0]);
@@ -28,8 +27,6 @@ void process_A(void* shmem) {
 			while((c = getchar()) != '\n' && c != EOF);
 		};
 	}
-	printf("A ended\n");
-
 }
 
 void handle_sigusr1_B() {
@@ -40,7 +37,7 @@ void process_B(void* shmem) {
 	close(fd[1]);
 	int value;
 
-	struct sigaction sa = { 0 };
+	struct sigaction sa = { 0 }; // Process B SIGUSR1 initialization
 	sa.sa_flags = SA_RESTART;
 	sa.sa_handler = &handle_sigusr1_B;
 	sigaction(SIGUSR1, &sa, NULL);
@@ -50,8 +47,9 @@ void process_B(void* shmem) {
 		value *= value;
 		memcpy(shmem, &value, sizeof(value));
 	}
-	printf("B ended\n");
 }
+
+bool value_changed = false;
 
 void* process_C_1(void* shmem) {
 	int value = 0; 
@@ -60,9 +58,7 @@ void* process_C_1(void* shmem) {
 			value_changed = true;
 			value = *(int*)shmem;
 		}
-
 	}
-	printf("C1 ended");
 }
 
 void* process_C_2(void* shmem) {
@@ -77,7 +73,6 @@ void* process_C_2(void* shmem) {
 		}
 		sleep(1);
         }
-	printf("C2 ended\n");
 }
 
 void process_C(void* shmem) {
@@ -86,7 +81,6 @@ void process_C(void* shmem) {
 	pthread_create(&c_2, NULL, &process_C_2, shmem);	
 
 	while(1) {}
-	printf("C ended\n");
 }
 
 int create_process(void (*fun_ptr)(void*), void* shmem) {
@@ -111,20 +105,18 @@ void handle_sigusr1_parent() {
 }
 
 int main() {
-	int shmem_value = 0;		
-	
-	int protection = PROT_READ | PROT_WRITE;
+	int protection = PROT_READ | PROT_WRITE; // Shared memory initialization
   	int visibility = MAP_SHARED | MAP_ANONYMOUS;
 	void* shmem = mmap(NULL, sizeof(int), protection, visibility, -1, 0);
-	
+	int shmem_value = 0;		
 	memcpy(shmem, &shmem_value, sizeof(shmem_value));
 	
-	struct sigaction sa = { 0 };
+	struct sigaction sa = { 0 }; // SIGUSR1 initialization
         sa.sa_flags = SA_RESTART;
         sa.sa_handler = &handle_sigusr1_parent;
         sigaction(SIGUSR1, &sa, NULL);
 
-	if (pipe(fd) == -1) {
+	if (pipe(fd) == -1) { // Open pipe
 		printf("An error occured with opening the pipe\n");
 		return 1;
 	}
