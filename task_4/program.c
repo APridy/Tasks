@@ -58,6 +58,7 @@ void* process_C_1(void* shmem) {
 			value_changed = true;
 			value = *(int*)shmem;
 		}
+		usleep(5000);
 	}
 }
 
@@ -80,7 +81,8 @@ void process_C(void* shmem) {
 	pthread_create(&c_1, NULL, &process_C_1, shmem);	
 	pthread_create(&c_2, NULL, &process_C_2, shmem);	
 
-	while (1) {}
+	pthread_join(c_1, NULL);
+	pthread_join(c_2, NULL);
 }
 
 int create_process(void (*fun_ptr)(void*), void* shmem) {
@@ -125,8 +127,12 @@ int main() {
 	B_pid = create_process(&process_B, shmem);
 	C_pid = create_process(&process_C, shmem);
 
-	wait(NULL);
+	waitpid(C_pid, NULL, 0);
+	waitpid(B_pid, NULL, 0);
+	waitpid(A_pid, NULL, 0);
 	
+	munmap(shmem, sizeof(int));
+
 	printf("Program execution is over\n");
 
 	return 0;
