@@ -26,7 +26,7 @@ struct shared_memory {
 };
 void* shmem;
 
-void process_A(void* shmem) {
+void process_A() {
 	close(fd[0]);
 	int value;
 	char c;
@@ -48,7 +48,7 @@ void handle_sigusr1_B() {
         kill(PID_B, SIGKILL);
 }
 
-void process_B(void* shmem) {
+void process_B() {
 	close(fd[1]);
 	int value;
 	bool val_changed = true;
@@ -68,7 +68,7 @@ void process_B(void* shmem) {
 
 bool value_changed = false;
 
-void* process_C_1(void* shmem) {
+void* process_C_1() {
 	int value = 0; 
 	while (1) {
 		if (SHMEM_VALUE_CHANGED) {
@@ -80,7 +80,7 @@ void* process_C_1(void* shmem) {
 	}
 }
 
-void* process_C_2(void* shmem) {
+void* process_C_2() {
 	while (1) {
                 if (value_changed) {
 			value_changed = false;
@@ -94,7 +94,7 @@ void* process_C_2(void* shmem) {
         }
 }
 
-void process_C(void* shmem) {
+void process_C() {
 	pthread_t c_1,c_2;	
 	pthread_create(&c_1, NULL, &process_C_1, shmem);	
 	pthread_create(&c_2, NULL, &process_C_2, shmem);	
@@ -103,7 +103,7 @@ void process_C(void* shmem) {
 	pthread_join(c_2, NULL);
 }
 
-int create_process(void (*fun_ptr)(void*), void* shmem) {
+int create_process(void (*fun_ptr)()) {
 	int pid = fork();
 	switch (pid) {
 		case -1: {
@@ -111,7 +111,7 @@ int create_process(void (*fun_ptr)(void*), void* shmem) {
                 	return -1;	 
 		} break;
 		case 0: {
-			fun_ptr(shmem);
+			fun_ptr();
 			exit(0);	
 		} break;
 		default: return pid;	
@@ -131,9 +131,9 @@ int main() {
 		return 1;
 	}
 
-	PID_A = create_process(&process_A, shmem);
-	PID_B = create_process(&process_B, shmem);
-	PID_C = create_process(&process_C, shmem);
+	PID_A = create_process(&process_A);
+	PID_B = create_process(&process_B);
+	PID_C = create_process(&process_C);
 
 	waitpid(PID_C, NULL, 0);
 	waitpid(PID_B, NULL, 0);
