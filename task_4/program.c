@@ -10,8 +10,21 @@
 #include <stdbool.h>
 #include <pthread.h>
 
+#define SHMEM_VALUE (*(struct shared_memory*)shmem).value
+#define SHMEM_VALUE_CHANGED (*(struct shared_memory*)shmem).val_changed
+#define PID_A (*(struct shared_memory*)shmem).pid_A
+#define PID_B (*(struct shared_memory*)shmem).pid_B
+#define PID_C (*(struct shared_memory*)shmem).pid_C
+
 int fd[2];
-int A_pid, B_pid, C_pid;
+struct shared_memory {
+	int value;
+	bool val_changed;
+	pid_t pid_A;
+	pid_t pid_B;
+	pid_t pid_C;
+};
+void* shmem;
 
 void process_A(void* shmem) {
 	close(fd[0]);
@@ -30,12 +43,15 @@ void process_A(void* shmem) {
 }
 
 void handle_sigusr1_B() {
-	kill(getppid(), SIGUSR1);
+	kill(PID_C, SIGKILL);
+        kill(PID_A, SIGKILL);
+        kill(PID_B, SIGKILL);
 }
 
 void process_B(void* shmem) {
 	close(fd[1]);
 	int value;
+	bool val_changed = true;
 
 	struct sigaction sa = { 0 }; // Process B SIGUSR1 initialization
 	sa.sa_flags = SA_RESTART;
@@ -46,6 +62,7 @@ void process_B(void* shmem) {
 		read(fd[0], &value, sizeof(int));
 		value *= value;
 		memcpy(shmem, &value, sizeof(value));
+		memcpy(shmem + sizeof(int), &val_changed, sizeof(bool));
 	}
 }
 
@@ -54,9 +71,10 @@ bool value_changed = false;
 void* process_C_1(void* shmem) {
 	int value = 0; 
 	while (1) {
-		if (value != *(int*)shmem) {
+		if (SHMEM_VALUE_CHANGED) {
+			SHMEM_VALUE_CHANGED = false;
 			value_changed = true;
-			value = *(int*)shmem;
+			value = SHMEM_VALUE;
 		}
 		usleep(5000);
 	}
@@ -66,8 +84,8 @@ void* process_C_2(void* shmem) {
 	while (1) {
                 if (value_changed) {
 			value_changed = false;
-			printf("Value = %d\n", *(int*)shmem);
-			if (*(int*)shmem == 100) kill(B_pid, SIGUSR1);
+			printf("Value = %d\n", SHMEM_VALUE);
+			if (SHMEM_VALUE == 100) kill(PID_B, SIGUSR1);
 		}
 		else {
 			printf("I am alive!\n");
@@ -100,38 +118,28 @@ int create_process(void (*fun_ptr)(void*), void* shmem) {
 	}
 }
 
-void handle_sigusr1_parent() {
-        kill(C_pid, SIGKILL);
-	kill(B_pid, SIGKILL);
-	kill(A_pid, SIGKILL);
-}
-
 int main() {
-	int protection = PROT_READ | PROT_WRITE; // Shared memory initialization
-  	int visibility = MAP_SHARED | MAP_ANONYMOUS;
-	void* shmem = mmap(NULL, sizeof(int), protection, visibility, -1, 0);
-	int shmem_value = 0;		
-	memcpy(shmem, &shmem_value, sizeof(shmem_value));
-	
-	struct sigaction sa = { 0 }; // SIGUSR1 initialization
-        sa.sa_flags = SA_RESTART;
-        sa.sa_handler = &handle_sigusr1_parent;
-        sigaction(SIGUSR1, &sa, NULL);
+	struct shared_memory shmem_init = { .value = 0, .val_changed = false}; // Shared memory initialization
+        int shmem_value = 0;
+        int protection = PROT_READ | PROT_WRITE;
+        int visibility = MAP_SHARED | MAP_ANONYMOUS;
+        shmem = mmap(NULL, sizeof(struct shared_memory), protection, visibility, -1, 0);
+        memcpy(shmem, &shmem_init, sizeof(struct shared_memory));
 
 	if (pipe(fd) == -1) { // Open pipe
 		printf("An error occured with opening the pipe\n");
 		return 1;
 	}
 
-	A_pid = create_process(&process_A, shmem);
-	B_pid = create_process(&process_B, shmem);
-	C_pid = create_process(&process_C, shmem);
+	PID_A = create_process(&process_A, shmem);
+	PID_B = create_process(&process_B, shmem);
+	PID_C = create_process(&process_C, shmem);
 
-	waitpid(C_pid, NULL, 0);
-	waitpid(B_pid, NULL, 0);
-	waitpid(A_pid, NULL, 0);
+	waitpid(PID_C, NULL, 0);
+	waitpid(PID_B, NULL, 0);
+	waitpid(PID_A, NULL, 0);
 	
-	munmap(shmem, sizeof(int));
+	munmap(shmem, sizeof(struct shared_memory));
 
 	printf("Program execution is over\n");
 
