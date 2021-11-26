@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include <pthread.h>
 
-#define PROC_FAILED -1
 #define SHMEM_VALUE (*(struct shared_memory*)shmem).value
 #define SHMEM_VALUE_CHANGED (*(struct shared_memory*)shmem).val_changed
 #define PID_A (*(struct shared_memory*)shmem).pid_A
