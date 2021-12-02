@@ -9,4 +9,5 @@ all:
 	$(CC) -o $(CLIENT_TARGET) $(CLIENT_SOURCE)
 
 clean:
-	rm $(SERVER_TARGET) $(CLIENT_TARGET)
+	rm $(SERVER_TARGET) $(CLIENT_TARGET) *.txt
+
