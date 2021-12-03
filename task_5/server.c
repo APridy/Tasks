@@ -1,7 +1,22 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 
 #define NUM_OF_DATA_TYPES 3
+
+struct mystruct {
+        int a;
+        int b;
+        int c;
+};
+
+union data {
+        int num;
+        char arr[5];
+        struct mystruct num3;
+};
 
 FILE *fp[NUM_OF_DATA_TYPES];
 char *filename[NUM_OF_DATA_TYPES] = {"int.txt", "array.txt", "struct.txt"};
@@ -33,6 +48,11 @@ int main(int argc, char **argv) {
 		printf("%s\n",filename[i]);
 		fp[i] = fopen(filename[i],"w");
 	}
+	
+	int msgid;
+	key_t msgkey = 252525;
+	msgid = msgget(msgkey, IPC_CREAT | 0666/*| IPC_EXCL*/);
+	printf("Message queue id: %d\n",msgid);
 
 	return 0;
 
