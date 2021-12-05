@@ -84,15 +84,21 @@ int main(int argc, char **argv) {
 	printf("\nLast message sent by process :%3d at %s \n",qstatus.msg_lspid,ctime(& (qstatus.msg_stime)));
 	printf("Last message received by process :%3d at %s \n",qstatus.msg_lrpid,ctime(& (qstatus.msg_rtime)));
 	
-	struct message rbuf;
-	union data dat = {.num = 0};
-	int twelve = 33;
+	struct message buf;
+	union data dat;
 	while(1) {
-		msgrcv(msgid, &rbuf, sizeof(struct message), 1, IPC_NOWAIT);
-		memcpy(&dat, &rbuf, sizeof(union data));
-		//dat.num = rbuf.msg[0];
-		printf("%d\n", dat.num);
-		printf("%s\n",dat.arr);
+		//msgrcv(msgid, &buf, sizeof(struct message), 1, IPC_NOWAIT);
+		//memcpy(&dat, buf.msg, sizeof(union data));
+		//printf("%d\n", dat.num);
+		
+		//msgrcv(msgid, &buf, sizeof(struct message), 2, IPC_NOWAIT);
+		//memcpy(&dat, buf.msg, sizeof(union data));
+		//printf("%s\n", dat.arr);
+
+		msgrcv(msgid, &buf, sizeof(struct message), 3, IPC_NOWAIT);
+		memcpy(&dat, buf.msg, sizeof(union data));
+		printf("%d - %d - %d\n", dat.num3.a, dat.num3.b, dat.num3.c);
+
 		sleep(1);
 	}
 	
