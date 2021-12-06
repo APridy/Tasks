@@ -140,15 +140,12 @@ int main(int argc, char **argv) {
 				break;
 			case 'i': 
 				filename[0] = optarg;
-				printf("%s\n",optarg);	
 				break;
 			case 'c': 
 				filename[1] = optarg;
-				printf("%s\n",optarg);	
 				break;
 			case 's': 
 				filename[2] = optarg;
-				printf("%s\n",optarg);
 				break;
 			case '?': 
 				printf("Invalid argument!\n");
