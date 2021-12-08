@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <signal.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -78,8 +80,10 @@ void write_data_to_file(char* data, char* filename) {
 void recieve_int() {
 	struct message msg_buf;
 	union data data_buf;
+
 	while(1) {
-		msgrcv(msgid, &msg_buf, sizeof(struct message), 1, 0);
+		if(msgrcv(msgid, &msg_buf, sizeof(struct message), 1, 0) == -1
+						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
 		printf("Recieved integer: %d\n", data_buf.num);
 		write_data_to_file(itoa(data_buf.num),filename[0]);
@@ -89,8 +93,10 @@ void recieve_int() {
 void recieve_arr() {
 	struct message msg_buf;
 	union data data_buf;
+
 	while(1) {
-		msgrcv(msgid, &msg_buf, sizeof(struct message), 2, 0);
+		if(msgrcv(msgid, &msg_buf, sizeof(struct message), 2, 0) == -1
+						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
 		printf("Recieved char[5]: %s\n", data_buf.arr);
 		write_data_to_file(data_buf.arr,filename[1]);
@@ -100,10 +106,13 @@ void recieve_arr() {
 void recieve_struct() {
 	struct message msg_buf;
 	union data data_buf;
+
 	while(1) {
-		msgrcv(msgid, &msg_buf, sizeof(struct message), 3, 0);
+		if(msgrcv(msgid, &msg_buf, sizeof(struct message), 3, 0) == -1 
+						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
-		printf("Recieved struct: %d - %d - %d\n", data_buf.num3.a, data_buf.num3.b, data_buf.num3.c);
+		printf("Recieved struct: %d - %d - %d\n", data_buf.num3.a, 
+					data_buf.num3.b, data_buf.num3.c);
 		char str[] = "";
 		strcat(str,itoa(data_buf.num3.a));
 		strcat(str," - ");
@@ -129,7 +138,11 @@ int create_process(void (*fun_ptr)()) {
 	}
 }
 
-void (*recieve_data[NUM_OF_DATA_TYPES])() = {&recieve_int, &recieve_arr, &recieve_struct};
+void (*recieve_data[NUM_OF_DATA_TYPES])() = {
+	&recieve_int, 
+	&recieve_arr, 
+	&recieve_struct
+};
 
 int main(int argc, char **argv) {
 	
@@ -152,22 +165,19 @@ int main(int argc, char **argv) {
 				return 1;
 		};
 	};
-	
+
 	key_t msgkey = QUEUE_KEY;
 	msgid = msgget(msgkey, IPC_CREAT | 0666/*| IPC_EXCL*/);
-
-	/*for(int i = 0; i < 3; i++) {
-		printf("%s\n",filename[i]);
-	}*/
 	
 	for(int i = 0; i < NUM_OF_DATA_TYPES; i++) {
 		pid[i] = create_process(recieve_data[i]);
-		//printf("Process created\n");
 	}
 
-	wait(NULL);
+	struct message msg_buf;
+	msgrcv(msgid, &msg_buf, sizeof(union data), NUM_OF_DATA_TYPES + 1, 0);	
+	msgctl(msgid,IPC_RMID,NULL);
 
-	printf("Program end\n");
+	printf("Program execution ended.\n");
 
 	return 0;
 

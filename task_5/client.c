@@ -118,14 +118,17 @@ int main(int argc, char **argv) {
 			clear_stdin();
 	}
 
-		if(choice == NUM_OF_DATA_TYPES + 1) break;
+		struct message msg_buf;
+		msg_buf.mtype = choice;
 
-		struct message buf;
-		buf.mtype = choice;
-		union data dat = scanf_data[choice - 1]();
-		memcpy(buf.msg, &dat, sizeof(union data));
-		if (msgsnd(msgid, &buf, sizeof(struct message), IPC_NOWAIT) < 0) exit(1);
-		else printf("Message: \"%d\" Sent\n", *(int*)buf.msg);
+		if(choice == NUM_OF_DATA_TYPES + 1) {
+			if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) exit(1);
+			break;
+		}
+
+		union data data_buf = scanf_data[choice - 1]();
+		memcpy(msg_buf.msg, &data_buf, sizeof(union data));
+		if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) exit(1);
 
 		clear_screen();
 	}
