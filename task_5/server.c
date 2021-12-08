@@ -78,11 +78,11 @@ void write_data_to_file(char* data, char* filename) {
 }
 
 void recieve_int() {
-	struct message msg_buf;
+	struct message msg_buf ;
 	union data data_buf;
 
 	while(1) {
-		if(msgrcv(msgid, &msg_buf, sizeof(struct message), 1, 0) == -1
+		if(msgrcv(msgid, &msg_buf, sizeof(union data), 1, MSG_NOERROR) == -1
 						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
 		printf("Recieved integer: %d\n", data_buf.num);
@@ -95,7 +95,7 @@ void recieve_arr() {
 	union data data_buf;
 
 	while(1) {
-		if(msgrcv(msgid, &msg_buf, sizeof(struct message), 2, 0) == -1
+		if(msgrcv(msgid, &msg_buf, sizeof(union data), 2, MSG_NOERROR) == -1
 						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
 		printf("Recieved char[5]: %s\n", data_buf.arr);
@@ -108,16 +108,16 @@ void recieve_struct() {
 	union data data_buf;
 
 	while(1) {
-		if(msgrcv(msgid, &msg_buf, sizeof(struct message), 3, 0) == -1 
+		if(msgrcv(msgid, &msg_buf, sizeof(union data), 3, MSG_NOERROR) == -1 
 						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
 		printf("Recieved struct: %d , %d , %d\n", data_buf.num3.a, 
 					data_buf.num3.b, data_buf.num3.c);
-		char str[] = "";
+		char str[45] = "";
 		strcat(str,itoa(data_buf.num3.a));
-		strcat(str," - ");
+		strcat(str," , ");
 		strcat(str,itoa(data_buf.num3.b));
-		strcat(str," - ");
+		strcat(str," , ");
 		strcat(str,itoa(data_buf.num3.c));
 		write_data_to_file(str,filename[2]);
 	}
@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
 	}
 
 	struct message msg_buf;
-	msgrcv(msgid, &msg_buf, sizeof(union data), NUM_OF_DATA_TYPES + 1, 0);	
+	msgrcv(msgid, &msg_buf, sizeof(union data), NUM_OF_DATA_TYPES + 1, MSG_NOERROR);	
 	msgctl(msgid,IPC_RMID,NULL);
 
 	printf("Program execution ended.\n");
