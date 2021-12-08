@@ -10,6 +10,7 @@
 
 #define QUEUE_KEY 252525
 #define NUM_OF_DATA_TYPES 3
+#define DELIMITER ":"
 
 struct mystruct {
 	int a;
@@ -77,16 +78,47 @@ union data scanf_struct() {
 	return value;
 }
 
-char *data_type[NUM_OF_DATA_TYPES] = {"Integer", "Char array", "Structure with 3 integers"};
-union data (*scanf_data[NUM_OF_DATA_TYPES])() = {&scanf_int, &scanf_arr, &scanf_struct};
+union data parse_int(char* str) {
+	union data value;
+	printf("1\n");
+	return value;
+}
+
+union data parse_arr(char* str) {
+	union data value;
+	printf("2\n");
+	return value;
+}
+
+union data parse_struct(char* str) {
+	union data value;
+	printf("3\n");
+	return value;
+}
+
+
+
+char *data_type[NUM_OF_DATA_TYPES] = {
+	"Integer", 
+	"Char array", 
+	"Structure with 3 integers"
+};
+
+union data (*scanf_data[NUM_OF_DATA_TYPES])() = {
+	&scanf_int,
+	&scanf_arr, 
+	&scanf_struct
+};
+
+union data (*parse_data[NUM_OF_DATA_TYPES])(char* str) = {&parse_int,&parse_arr, &parse_struct};
 
 int main(int argc, char **argv) {
-
 	char arg = 0;
+	char *filename = NULL;
 	while ((arg = getopt(argc,argv,"f:")) != -1) {
 		switch (arg) {
 			case 'f':
-				printf("%s\n",optarg);
+				filename = optarg;
 				break;
 			case '?':
 				printf("Invalid argument!\n");
@@ -100,10 +132,40 @@ int main(int argc, char **argv) {
 	key_t msgkey = QUEUE_KEY;
 	msgid = msgget(msgkey, IPC_CREAT | 0666/*| IPC_EXCL*/);
 	printf("Message queue id: %d\n",msgid);
+	
+	if (filename != NULL) {
+		char *line = NULL;
+		size_t len = 0;
 
-	bool exit_program = false;
-	while (!exit_program) {
+		FILE *fp = fopen(filename,"r");
+		if (fp == NULL) {
+			printf("No such file!\n");
+			return 1;
+		}
+		printf("Parsing ""%s""...\n",filename);
+		while (getline(&line, &len, fp) != -1) {
+			char *type = line;
+			strtok(type, DELIMITER);
+			for (int i = 0; i <= NUM_OF_DATA_TYPES; i++) {
+				if (i == NUM_OF_DATA_TYPES) {
+					printf("Invalid type! Line:\n%s\n",line);	
+					fclose(fp);
+					free(line);
+					return 2;
+				}
+				if (strcmp(type,data_type[i]) == 0) {
+					parse_data[i](line);
+					break;
+				}
+			}
+		}
 
+		fclose(fp);
+		free(line);
+		return 0;
+	}
+
+	while (1) {
 		printf("Choose what data type to send:\n");
 		for (int i = 0; i < NUM_OF_DATA_TYPES; i++) {
 			printf("%d: %s\n", i+1, data_type[i]);
@@ -116,13 +178,14 @@ int main(int argc, char **argv) {
 			printf("Invalid input.\nEnter integer value in range  1 - %d\n", 
 					NUM_OF_DATA_TYPES);
 			clear_stdin();
-	}
+		}
 
 		struct message msg_buf;
 		msg_buf.mtype = choice;
 
 		if(choice == NUM_OF_DATA_TYPES + 1) {
-			if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) exit(1);
+			if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) 
+				exit(1);
 			break;
 		}
 

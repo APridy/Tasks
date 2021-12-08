@@ -111,7 +111,7 @@ void recieve_struct() {
 		if(msgrcv(msgid, &msg_buf, sizeof(struct message), 3, 0) == -1 
 						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
-		printf("Recieved struct: %d - %d - %d\n", data_buf.num3.a, 
+		printf("Recieved struct: %d , %d , %d\n", data_buf.num3.a, 
 					data_buf.num3.b, data_buf.num3.c);
 		char str[] = "";
 		strcat(str,itoa(data_buf.num3.a));
