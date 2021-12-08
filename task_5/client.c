@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -35,13 +36,13 @@ void clear_screen() {
 
 void clear_stdin() {
 	char c;
-	while((c = getchar()) != '\n' && c != EOF);
+	while ((c = getchar()) != '\n' && c != EOF);
 }
 
 union data scanf_int() {
 	union data value;
 	printf("Enter integer value\n");
-	while(scanf("%d", &(value.num)) != 1) {
+	while (scanf("%d", &(value.num)) != 1) {
 		printf("Invalid input. Enter integer value\n");
 		clear_stdin();
 	}
@@ -51,7 +52,7 @@ union data scanf_int() {
 union data scanf_arr() {
 	union data value;
 	printf("Enter string under 5 characters\n");
-	while((scanf("%s", value.arr) != 1) || strlen(value.arr) > 5) {
+	while ((scanf("%s", value.arr) != 1) || strlen(value.arr) > 5) {
 		printf("Invalid input. Enter string under 5 characters\n");
 		clear_stdin();
 	}
@@ -61,17 +62,17 @@ union data scanf_arr() {
 union data scanf_struct() {
 	union data value;
 	printf("Enter integer value\n");
-	while(scanf("%d", &(value.num3.a)) != 1) {
+	while (scanf("%d", &(value.num3.a)) != 1) {
 		printf("Invalid input. Enter integer value\n");
 		clear_stdin();
 	}
 	printf("Enter integer value\n");
-	while(scanf("%d", &(value.num3.b)) != 1) {
+	while (scanf("%d", &(value.num3.b)) != 1) {
 		printf("Invalid input. Enter integer value\n");
 		clear_stdin();
 	}
 	printf("Enter integer value\n");
-	while(scanf("%d", &(value.num3.c)) != 1) {
+	while (scanf("%d", &(value.num3.c)) != 1) {
 		printf("Invalid input. Enter integer value\n");
 		clear_stdin();
 	}
@@ -130,18 +131,23 @@ int main(int argc, char **argv) {
 
 	int msgid;
 	key_t msgkey = QUEUE_KEY;
-	msgid = msgget(msgkey, IPC_CREAT | 0666/*| IPC_EXCL*/);
+	if ((msgid = msgget(msgkey, IPC_CREAT | 0666)) < 0) {
+		printf("Error while connecting to message queue!\n");
+		return errno;
+	}
 	printf("Message queue id: %d\n",msgid);
 	
+
 	if (filename != NULL) {
 		char *line = NULL;
 		size_t len = 0;
 
-		FILE *fp = fopen(filename,"r");
-		if (fp == NULL) {
+		FILE *fp;
+		if ((fp = fopen(filename,"r")) == NULL) {
 			printf("No such file!\n");
-			return 1;
+			return errno;
 		}
+
 		printf("Parsing ""%s""...\n",filename);
 		while (getline(&line, &len, fp) != -1) {
 			char *type = line;
@@ -151,7 +157,7 @@ int main(int argc, char **argv) {
 					printf("Invalid type! Line:\n%s\n",line);	
 					fclose(fp);
 					free(line);
-					return 2;
+					return 1;
 				}
 				if (strcmp(type,data_type[i]) == 0) {
 					parse_data[i](line);
@@ -183,15 +189,20 @@ int main(int argc, char **argv) {
 		struct message msg_buf;
 		msg_buf.mtype = choice;
 
-		if(choice == NUM_OF_DATA_TYPES + 1) {
-			if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) 
-				exit(1);
+		if (choice == NUM_OF_DATA_TYPES + 1) {
+			if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) {
+				printf("Msgsnd error!\n");
+				return errno;
+			}
 			break;
 		}
 
 		union data data_buf = scanf_data[choice - 1]();
 		memcpy(msg_buf.msg, &data_buf, sizeof(union data));
-		if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) exit(1);
+		if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) { 
+			printf("Msgsnd error!\n");
+			return errno;
+		}
 
 		clear_screen();
 	}

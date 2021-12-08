@@ -68,7 +68,7 @@ char* itoa(int num) {
 void write_data_to_file(char* data, char* filename) {
 	FILE *fp = fopen(filename,"a+");
 	if(msgctl(msgid,IPC_STAT,&qstatus)<0){
-		perror("Msgctl failed");
+		//printf("Msgctl error!\n");
 		exit(1);
 	}
 	char s[30];
@@ -81,7 +81,7 @@ void recieve_int() {
 	struct message msg_buf ;
 	union data data_buf;
 
-	while(1) {
+	while (1) {
 		if(msgrcv(msgid, &msg_buf, sizeof(union data), 1, MSG_NOERROR) == -1
 						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
@@ -94,7 +94,7 @@ void recieve_arr() {
 	struct message msg_buf;
 	union data data_buf;
 
-	while(1) {
+	while (1) {
 		if(msgrcv(msgid, &msg_buf, sizeof(union data), 2, MSG_NOERROR) == -1
 						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
@@ -107,8 +107,8 @@ void recieve_struct() {
 	struct message msg_buf;
 	union data data_buf;
 
-	while(1) {
-		if(msgrcv(msgid, &msg_buf, sizeof(union data), 3, MSG_NOERROR) == -1 
+	while (1) {
+		if (msgrcv(msgid, &msg_buf, sizeof(union data), 3, MSG_NOERROR) == -1
 						&& errno == EIDRM) break;
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
 		printf("Recieved struct: %d , %d , %d\n", data_buf.num3.a, 
@@ -128,11 +128,11 @@ int create_process(void (*fun_ptr)()) {
 	switch (pid) {
 		case -1: {
 			printf("An error occured with creating process\n");
-			return -1;
+			return errno;
 		} break;
 		case 0: {
 			fun_ptr();
-			exit(0);
+			exit(1);
 		} break;
 		default: return pid;
 	}
@@ -162,14 +162,17 @@ int main(int argc, char **argv) {
 				break;
 			case '?': 
 				printf("Invalid argument!\n");
-				return 1;
+				return -1;
 		};
 	};
 
 	key_t msgkey = QUEUE_KEY;
-	msgid = msgget(msgkey, IPC_CREAT | 0666/*| IPC_EXCL*/);
-	
-	for(int i = 0; i < NUM_OF_DATA_TYPES; i++) {
+	if ((msgid = msgget(msgkey, IPC_CREAT | 0666)) < 0) {
+		printf("Error while connecting to message queue!\n");
+		return errno;
+        }
+
+	for (int i = 0; i < NUM_OF_DATA_TYPES; i++) {
 		pid[i] = create_process(recieve_data[i]);
 	}
 
