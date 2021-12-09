@@ -11,7 +11,7 @@
 
 #define QUEUE_KEY 252525
 #define NUM_OF_DATA_TYPES 3
-#define DELIMITER ":"
+#define DELIMITER ":,\n"
 
 struct mystruct {
 	int a;
@@ -81,23 +81,37 @@ union data scanf_struct() {
 
 union data parse_int(char* str) {
 	union data value;
-	printf("1\n");
+	value.num = atoi(str);
 	return value;
 }
 
 union data parse_arr(char* str) {
 	union data value;
-	printf("2\n");
+	strcpy(value.arr,str);
 	return value;
 }
 
 union data parse_struct(char* str) {
 	union data value;
-	printf("3\n");
+	value.num3.a = atoi(str);
+	str = strtok(NULL,DELIMITER);
+	value.num3.b = atoi(str);
+	str = strtok(NULL,DELIMITER);
+	value.num3.c = atoi(str);
 	return value;
 }
 
+void shut_server(int msgid) {
+	struct message msg_buf;
+	union data data_buf;
 
+	msg_buf.mtype = NUM_OF_DATA_TYPES + 1;
+	if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) {
+		printf("Msgsnd error!\n");
+		exit(errno);
+	}
+
+}
 
 char *data_type[NUM_OF_DATA_TYPES] = {
 	"Integer", 
@@ -150,8 +164,8 @@ int main(int argc, char **argv) {
 
 		printf("Parsing ""%s""...\n",filename);
 		while (getline(&line, &len, fp) != -1) {
-			char *type = line;
-			strtok(type, DELIMITER);
+			char *type;
+			type = strtok(line, DELIMITER);
 			for (int i = 0; i <= NUM_OF_DATA_TYPES; i++) {
 				if (i == NUM_OF_DATA_TYPES) {
 					printf("Invalid type! Line:\n%s\n",line);	
@@ -160,12 +174,20 @@ int main(int argc, char **argv) {
 					return 1;
 				}
 				if (strcmp(type,data_type[i]) == 0) {
-					parse_data[i](line);
+					struct message msg_buf;
+					msg_buf.mtype = i + 1;
+					union data data_buf = parse_data[i](strtok(NULL,DELIMITER));
+					memcpy(msg_buf.msg, &data_buf, sizeof(union data));
+					if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) {
+						printf("Msgsnd error!\n");
+						return errno;
+					}
 					break;
 				}
 			}
 		}
-
+		
+		printf("Parsing completed succesfully!\nProgram execution ended.\n");
 		fclose(fp);
 		free(line);
 		return 0;
@@ -190,10 +212,7 @@ int main(int argc, char **argv) {
 		msg_buf.mtype = choice;
 
 		if (choice == NUM_OF_DATA_TYPES + 1) {
-			if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) {
-				printf("Msgsnd error!\n");
-				return errno;
-			}
+			shut_server(msgid);
 			break;
 		}
 

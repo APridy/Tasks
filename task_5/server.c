@@ -38,7 +38,7 @@ pid_t pid[NUM_OF_DATA_TYPES];
 int msgid;
 
 char* itoa(int num) {
-	int i = 1;	
+	int i = 1;
 	int divider = 1;
 	if(num == 0) return "0"; 
 	while(num/(divider*10) != 0) {
@@ -53,11 +53,20 @@ char* itoa(int num) {
 		i++;
 		num *= -1;
 	}
-	while(num > 10) {
+	while(num > 9) {
 		str[i] = ((num / divider) + 48);
 		i++;
 		num = num % divider;
 		divider = divider/10;
+		int real_divider = 1;
+		while(num/(real_divider*10) != 0) {
+			real_divider *= 10;
+		}
+		while(divider != real_divider) {
+			divider /= 10;
+			str[i] = '0';
+			i++;
+		}
 	}
 	str[i] = num + 48;
 	i++;
@@ -68,7 +77,7 @@ char* itoa(int num) {
 void write_data_to_file(char* data, char* filename) {
 	FILE *fp = fopen(filename,"a+");
 	if(msgctl(msgid,IPC_STAT,&qstatus)<0){
-		//printf("Msgctl error!\n");
+		printf("Msgctl error!\n");
 		exit(1);
 	}
 	char s[30];
