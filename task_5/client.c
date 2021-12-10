@@ -206,8 +206,7 @@ int main(int argc, char **argv) {
 		printf("%d: Exit program & shut server\n", NUM_OF_DATA_TYPES + 2);
 
 		int choice = 0;
-		while ((scanf("%d", &choice) != 1) || ((choice < 1) 
-					|| (choice > NUM_OF_DATA_TYPES + 2))) {
+		while ((scanf("%d", &choice) != 1) || ((choice < 1) || (choice > NUM_OF_DATA_TYPES + 2))) {
 			printf("Invalid input.\nEnter integer value in range  1 - %d\n", NUM_OF_DATA_TYPES);
 			clear_stdin();
 		}
