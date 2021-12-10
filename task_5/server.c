@@ -154,11 +154,12 @@ void (*recieve_data[NUM_OF_DATA_TYPES])() = {
 };
 
 int main(int argc, char **argv) {
-	
 	char arg = 0;
 	while ((arg = getopt(argc,argv,"Di:c:s:")) != -1) {
 		switch (arg) {
-			case 'D': 
+			case 'D':
+				if(fork()) return 0;
+				fclose(stdout);
 				break;
 			case 'i': 
 				filename[0] = optarg;
@@ -177,20 +178,19 @@ int main(int argc, char **argv) {
 
 	key_t msgkey = QUEUE_KEY;
 	if ((msgid = msgget(msgkey, IPC_CREAT | 0666)) < 0) {
-		printf("Error while connecting to message queue!\n");
+		printf("Error while creating message queue!\n");
 		return errno;
-        }
+	}
 
 	for (int i = 0; i < NUM_OF_DATA_TYPES; i++) {
 		pid[i] = create_process(recieve_data[i]);
 	}
 
 	struct message msg_buf;
-	msgrcv(msgid, &msg_buf, sizeof(union data), NUM_OF_DATA_TYPES + 1, MSG_NOERROR);	
+	msgrcv(msgid, &msg_buf, sizeof(union data), NUM_OF_DATA_TYPES + 1, MSG_NOERROR);
 	msgctl(msgid,IPC_RMID,NULL);
 
 	printf("Program execution ended.\n");
 
 	return 0;
-
 }
