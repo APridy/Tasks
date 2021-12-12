@@ -113,6 +113,9 @@ void shut_server(int msgid) {
 
 }
 
+char *g_filename = NULL;
+int g_msgid;
+
 char *data_type[NUM_OF_DATA_TYPES] = {
 	"Integer",
 	"Char array",
@@ -128,8 +131,11 @@ union data (*scanf_data[NUM_OF_DATA_TYPES])() = {
 union data (*parse_data[NUM_OF_DATA_TYPES])(char* str) = {&parse_int,&parse_arr, &parse_struct};
 
 int parse_file(char* filename, int msgid) {
-	char *line = NULL;
+	char *line;
+	char *type;
 	size_t len = 0;
+	struct message msg_buf;
+	union data data_buf;
 
 	FILE *fp;
 	if ((fp = fopen(filename,"r")) == NULL) {
@@ -139,24 +145,22 @@ int parse_file(char* filename, int msgid) {
 
 	printf("Parsing ""%s""...\n",filename);
 	while (getline(&line, &len, fp) != -1) {
-		char *type;
 		type = strtok(line, DELIMITER);
 		for (int i = 0; i <= NUM_OF_DATA_TYPES; i++) {
 			if (i == NUM_OF_DATA_TYPES) {
 				printf("Invalid type! Line:\n%s\n",line);
-				fclose(fp);
-				free(line);
 				errno = 1;
-				return errno;
+				goto end_parsing;
 			}
 			if (strcmp(type,data_type[i]) == 0) {
-				struct message msg_buf;
 				msg_buf.mtype = i + 1;
-				union data data_buf = parse_data[i](strtok(NULL,DELIMITER));
+				data_buf = parse_data[i](strtok(NULL,DELIMITER));
 				memcpy(msg_buf.msg, &data_buf, sizeof(union data));
-				if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) {
+				if (msgsnd(msgid, &msg_buf, 
+					sizeof(struct message), IPC_NOWAIT) < 0) {
 					printf("Msgsnd error!\n");
-					return errno;
+					errno = 1;
+					goto end_parsing;
 				}
 				break;
 			}
@@ -164,73 +168,88 @@ int parse_file(char* filename, int msgid) {
 	}
 
 	printf("Parsing completed succesfully!\n");
+	errno = 0;
+	end_parsing:
 	fclose(fp);
 	free(line);
-	return 0;
+	return errno;
 }
 
-int main(int argc, char **argv) {
+int parse_args(int argc, char **argv) {
 	char arg = 0;
-	char *filename = NULL;
 	while ((arg = getopt(argc,argv,"f:")) != -1) {
 		switch (arg) {
 			case 'f':
-				filename = optarg;
+				g_filename = optarg;
 				break;
 			case '?':
 				printf("Invalid argument!\n");
-				return 1;
+				errno = 1;
+				return errno;
 		};
 	};
+	return 0;
+}
 
-	int msgid;
-	key_t msgkey = QUEUE_KEY;
-	if ((msgid = msgget(msgkey, 0666)) < 0) {
+int connect_to_message_queue() {
+	if ((g_msgid = msgget(QUEUE_KEY, 0666)) < 0) {
 		printf("Error while connecting to message queue!\n");
 		return errno;
 	}
+	return 0;
+}
 
-	clear_screen();
-	printf("Message queue id: %d\n",msgid);
+void print_menu() {
+	printf("Choose what data type to send:\n");
+	for (int i = 0; i < NUM_OF_DATA_TYPES; i++) {
+		printf("%d: %s\n", i+1, data_type[i]);
+	}
+	printf("%d: Exit program\n", NUM_OF_DATA_TYPES + 1);
+	printf("%d: Exit program & shut server\n", NUM_OF_DATA_TYPES + 2);
+}
 
-	if ((filename != NULL) && parse_file(filename, msgid)) {
+int scanf_choice() {
+	int choice;
+	while ((scanf("%d", &choice) != 1) || ((choice < 1) || (choice > NUM_OF_DATA_TYPES + 2))) {
+		printf("Invalid input.\nEnter integer value in range  1 - %d\n", NUM_OF_DATA_TYPES);
+		clear_stdin();
+	}
+	return choice;
+}
+
+int main(int argc, char **argv) {
+	if(parse_args(argc,argv)) return errno;
+	if(connect_to_message_queue()) return errno;
+
+	if ((g_filename != NULL) && parse_file(g_filename, g_msgid)) {
 		return errno;
 	}
 
-	while (1) {
-		printf("Choose what data type to send:\n");
-		for (int i = 0; i < NUM_OF_DATA_TYPES; i++) {
-			printf("%d: %s\n", i+1, data_type[i]);
-		}
-		printf("%d: Exit program\n", NUM_OF_DATA_TYPES + 1);
-		printf("%d: Exit program & shut server\n", NUM_OF_DATA_TYPES + 2);
-
-		int choice = 0;
-		while ((scanf("%d", &choice) != 1) || ((choice < 1) || (choice > NUM_OF_DATA_TYPES + 2))) {
-			printf("Invalid input.\nEnter integer value in range  1 - %d\n", NUM_OF_DATA_TYPES);
-			clear_stdin();
-		}
-
-		struct message msg_buf;
-		msg_buf.mtype = choice;
-		
-		if (choice == NUM_OF_DATA_TYPES + 1) break;
-		if (choice == NUM_OF_DATA_TYPES + 2) {
-			shut_server(msgid);
-			break;
-		}
-
-		union data data_buf = scanf_data[choice - 1]();
-		memcpy(msg_buf.msg, &data_buf, sizeof(union data));
-		if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) { 
-			printf("Msgsnd error!\n");
-			return errno;
-		}
-
+	struct message msg_buf;
+	union data data_buf;
+	bool exit_program = false;
+	while (!exit_program) {
 		clear_screen();
+		print_menu();
+		msg_buf.mtype = scanf_choice();
+		switch(msg_buf.mtype) {
+			case NUM_OF_DATA_TYPES + 2: 
+				shut_server(g_msgid);
+			case NUM_OF_DATA_TYPES + 1: {
+				exit_program = true;
+			} break;
+			default: {
+				data_buf = scanf_data[msg_buf.mtype - 1]();
+				memcpy(msg_buf.msg, &data_buf, sizeof(union data));
+				if (msgsnd(g_msgid, &msg_buf, 
+					sizeof(struct message), IPC_NOWAIT) < 0) {
+					printf("Msgsnd error!\n");
+					return errno;
+				}
+			} break;
+		}
 	}
 
 	printf("Program execution ended.\n");
-
 	return 0;
 }
