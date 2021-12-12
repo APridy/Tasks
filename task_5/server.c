@@ -14,6 +14,7 @@
 
 #define QUEUE_KEY 252525
 #define NUM_OF_DATA_TYPES 3
+#define INT_STR_SIZE 13
 
 struct mystruct {
 	int a;
@@ -33,49 +34,11 @@ struct message{
 };
 
 char *filename[NUM_OF_DATA_TYPES] = {"int.txt", "array.txt", "struct.txt"};
-struct msqid_ds qstatus;
-pid_t pid[NUM_OF_DATA_TYPES];
 int msgid;
-
-char* itoa(int num) {
-	int i = 1;
-	int divider = 1;
-	if(num == 0) return "0"; 
-	while(num/(divider*10) != 0) {
-		divider *= 10;
-		i++;
-	}
-	if(num < 0) i++;
-	char* str = malloc(i + 1);
-	i = 0;
-	if(num < 0) {
-		str[i] = '-';
-		i++;
-		num *= -1;
-	}
-	while(num > 9) {
-		str[i] = ((num / divider) + 48);
-		i++;
-		num = num % divider;
-		divider = divider/10;
-		int real_divider = 1;
-		while(num/(real_divider*10) != 0) {
-			real_divider *= 10;
-		}
-		while(divider != real_divider) {
-			divider /= 10;
-			str[i] = '0';
-			i++;
-		}
-	}
-	str[i] = num + 48;
-	i++;
-	str[i] = '\0';
-	return str;
-}
 
 void write_data_to_file(char* data, char* filename) {
 	FILE *fp = fopen(filename,"a+");
+	struct msqid_ds qstatus;
 	if(msgctl(msgid,IPC_STAT,&qstatus)<0){
 		printf("Msgctl error!\n");
 		exit(1);
@@ -86,68 +49,35 @@ void write_data_to_file(char* data, char* filename) {
 	fclose(fp);
 }
 
-void recieve_int() {
-	struct message msg_buf ;
-	union data data_buf;
-
-	while (1) {
-		if(msgrcv(msgid, &msg_buf, sizeof(union data), 1, MSG_NOERROR) == -1
-						&& errno == EIDRM) break;
-		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
-		printf("Recieved integer: %d\n", data_buf.num);
-		write_data_to_file(itoa(data_buf.num),filename[0]);
-	}
+void recieve_int(union data data_buf) {
+	char buffer[INT_STR_SIZE];
+	printf("Recieved integer: %d\n", data_buf.num);
+	snprintf(buffer,INT_STR_SIZE,"%d",data_buf.num);
+	write_data_to_file(buffer,filename[0]);
 }
 
-void recieve_arr() {
-	struct message msg_buf;
-	union data data_buf;
-
-	while (1) {
-		if(msgrcv(msgid, &msg_buf, sizeof(union data), 2, MSG_NOERROR) == -1
-						&& errno == EIDRM) break;
-		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
-		printf("Recieved char[5]: %s\n", data_buf.arr);
-		write_data_to_file(data_buf.arr,filename[1]);
-	}
+void recieve_arr(union data data_buf) {
+	printf("Recieved char[5]: %s\n", data_buf.arr);
+	write_data_to_file(data_buf.arr,filename[1]);
 }
 
-void recieve_struct() {
-	struct message msg_buf;
-	union data data_buf;
-
-	while (1) {
-		if (msgrcv(msgid, &msg_buf, sizeof(union data), 3, MSG_NOERROR) == -1
-						&& errno == EIDRM) break;
-		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
-		printf("Recieved struct: %d , %d , %d\n", data_buf.num3.a, 
-					data_buf.num3.b, data_buf.num3.c);
-		char str[45] = "";
-		strcat(str,itoa(data_buf.num3.a));
-		strcat(str," , ");
-		strcat(str,itoa(data_buf.num3.b));
-		strcat(str," , ");
-		strcat(str,itoa(data_buf.num3.c));
-		write_data_to_file(str,filename[2]);
-	}
+void recieve_struct(union data data_buf) {
+	char buffer[INT_STR_SIZE];
+	char str[INT_STR_SIZE*3 + 6] = "";
+	printf("Recieved struct: %d , %d , %d\n", data_buf.num3.a, 
+				data_buf.num3.b, data_buf.num3.c);
+	snprintf(buffer,INT_STR_SIZE,"%d",data_buf.num3.a);
+	strcat(str,buffer);
+	strcat(str," , ");
+	snprintf(buffer,INT_STR_SIZE,"%d",data_buf.num3.b);
+	strcat(str,buffer);
+	strcat(str," , ");
+	snprintf(buffer,INT_STR_SIZE,"%d",data_buf.num3.c);
+	strcat(str,buffer);
+	write_data_to_file(str,filename[2]);
 }
 
-int create_process(void (*fun_ptr)()) {
-	int pid = fork();
-	switch (pid) {
-		case -1: {
-			printf("An error occured with creating process\n");
-			return errno;
-		} break;
-		case 0: {
-			fun_ptr();
-			exit(1);
-		} break;
-		default: return pid;
-	}
-}
-
-void (*recieve_data[NUM_OF_DATA_TYPES])() = {
+void (*recieve_data[NUM_OF_DATA_TYPES])(union data) = {
 	&recieve_int, 
 	&recieve_arr, 
 	&recieve_struct
@@ -182,14 +112,18 @@ int main(int argc, char **argv) {
 		return errno;
 	}
 
-	for (int i = 0; i < NUM_OF_DATA_TYPES; i++) {
-		pid[i] = create_process(recieve_data[i]);
+	struct message msg_buf;
+	union data data_buf;
+
+	while (1) {
+		if(msgrcv(msgid, &msg_buf, sizeof(union data), 0, MSG_NOERROR) == -1
+						&& errno == EIDRM) break;
+		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
+		if(msg_buf.mtype == NUM_OF_DATA_TYPES + 1) break;
+		recieve_data[msg_buf.mtype - 1](data_buf);
 	}
 
-	struct message msg_buf;
-	msgrcv(msgid, &msg_buf, sizeof(union data), NUM_OF_DATA_TYPES + 1, MSG_NOERROR);
 	msgctl(msgid,IPC_RMID,NULL);
-
 	printf("Program execution ended.\n");
 
 	return 0;
