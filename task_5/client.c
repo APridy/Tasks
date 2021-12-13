@@ -8,27 +8,9 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include "data_types.c"
 
-#define QUEUE_KEY 252525
-#define NUM_OF_DATA_TYPES 3
 #define DELIMITER ":,\n"
-
-struct mystruct {
-	int a;
-	int b;
-	int c;
-};
-
-union data {
-	int num;
-	char arr[5];
-	struct mystruct num3;
-};
-
-struct message {
-	long mtype;
-	uint8_t msg[sizeof(union data)];
-};
 
 void clear_screen() {
 	printf("\e[1;1H\e[2J"); //ANSI escape codes to clear screen/set carriage to 1,1
@@ -113,14 +95,8 @@ void shut_server(int msgid) {
 
 }
 
-char *g_filename = NULL;
+char *g_parse_filename = NULL;
 int g_msgid;
-
-char *data_type[NUM_OF_DATA_TYPES] = {
-	"Integer",
-	"Char array",
-	"Structure with 3 integers"
-};
 
 union data (*scanf_data[NUM_OF_DATA_TYPES])() = {
 	&scanf_int,
@@ -128,11 +104,14 @@ union data (*scanf_data[NUM_OF_DATA_TYPES])() = {
 	&scanf_struct
 };
 
-union data (*parse_data[NUM_OF_DATA_TYPES])(char* str) = {&parse_int,&parse_arr, &parse_struct};
+union data (*parse_data[NUM_OF_DATA_TYPES])(char* str) = {
+	&parse_int,
+	&parse_arr, 
+	&parse_struct
+};
 
 int parse_file(char* filename, int msgid) {
-	char *line;
-	char *type;
+	char *line,*type;
 	size_t len = 0;
 	struct message msg_buf;
 	union data data_buf;
@@ -152,7 +131,7 @@ int parse_file(char* filename, int msgid) {
 				errno = 1;
 				goto end_parsing;
 			}
-			if (strcmp(type,data_type[i]) == 0) {
+			if (strcmp(type,g_data_type[i]) == 0) {
 				msg_buf.mtype = i + 1;
 				data_buf = parse_data[i](strtok(NULL,DELIMITER));
 				memcpy(msg_buf.msg, &data_buf, sizeof(union data));
@@ -180,7 +159,7 @@ int parse_args(int argc, char **argv) {
 	while ((arg = getopt(argc,argv,"f:")) != -1) {
 		switch (arg) {
 			case 'f':
-				g_filename = optarg;
+				g_parse_filename = optarg;
 				break;
 			case '?':
 				printf("Invalid argument!\n");
@@ -202,7 +181,7 @@ int connect_to_message_queue() {
 void print_menu() {
 	printf("Choose what data type to send:\n");
 	for (int i = 0; i < NUM_OF_DATA_TYPES; i++) {
-		printf("%d: %s\n", i+1, data_type[i]);
+		printf("%d: %s\n", i+1, g_data_type[i]);
 	}
 	printf("%d: Exit program\n", NUM_OF_DATA_TYPES + 1);
 	printf("%d: Exit program & shut server\n", NUM_OF_DATA_TYPES + 2);
@@ -221,7 +200,7 @@ int main(int argc, char **argv) {
 	if(parse_args(argc,argv)) return errno;
 	if(connect_to_message_queue()) return errno;
 
-	if ((g_filename != NULL) && parse_file(g_filename, g_msgid)) {
+	if ((g_filename != NULL) && parse_file(g_parse_filename, g_msgid)) {
 		return errno;
 	}
 

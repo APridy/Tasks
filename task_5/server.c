@@ -13,31 +13,12 @@
 #include <sys/msg.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include "data_types.c"
 
-#define QUEUE_KEY 252525
-#define NUM_OF_DATA_TYPES 3
 #define INT_STR_SIZE 13
-
-struct mystruct {
-	int a;
-	int b;
-	int c;
-};
-
-union data {
-	int num;
-	char arr[5];
-	struct mystruct num3;
-};
-
-struct message{
-	long mtype;
-	uint8_t msg[sizeof(union data)];
-};
 
 bool g_daemon_mode = false;
 bool g_exit_program = false;
-char *g_filename[NUM_OF_DATA_TYPES] = {"int.txt", "array.txt", "struct.txt"};
 int g_msgid;
 
 void write_data_to_file(char* data, char* filename) {
@@ -150,11 +131,11 @@ int main(int argc, char **argv) {
 
 	struct message msg_buf;
 	union data data_buf;
-	
+
 	while (!g_exit_program) { //message recieving cycle
 		if(msgrcv(g_msgid, &msg_buf, sizeof(union data), 0, MSG_NOERROR) == -1) 
 			return errno;
-		memcpy(&data_buf, msg_buf.msg, sizeof(union data));	
+		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
 		handle_data[msg_buf.mtype - 1](data_buf);
 	}
 
