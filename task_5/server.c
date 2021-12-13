@@ -104,8 +104,8 @@ int apply_daemon_mode() {
 
 int create_message_queue() {
 	if ((g_msgid = msgget(QUEUE_KEY, IPC_CREAT | 0666)) < 0) {
-		printf("Error while creating message queue!\n");
-		return errno;
+		printf("Error while creating message queue!: %s\n", strerror(errno));
+		return -1;
 	}
 	return 0;
 }
@@ -120,14 +120,16 @@ void (*handle_data[NUM_OF_DATA_TYPES + 1])(union data) = {
 int main(int argc, char **argv) {
 	if(parse_args(argc,argv)) return -1;
 	if(g_daemon_mode) apply_daemon_mode();
-	if(create_message_queue()) return errno; 
+	if(create_message_queue()) return -1; 
 
 	struct message msg_buf;
 	union data data_buf;
 
 	while (!g_exit_program) { //message recieving cycle
-		if(msgrcv(g_msgid, &msg_buf, sizeof(union data), 0, MSG_NOERROR) == -1) 
-			return errno;
+		if(msgrcv(g_msgid, &msg_buf, sizeof(union data), 0, MSG_NOERROR) == -1) {
+			printf("Error while recieving a message!: %s\n", strerror(errno));
+			return -1;
+		}
 		memcpy(&data_buf, msg_buf.msg, sizeof(union data));
 		handle_data[msg_buf.mtype - 1](data_buf);
 	}

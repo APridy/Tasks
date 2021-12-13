@@ -89,8 +89,8 @@ int shut_server(int msgid) {
 
 	msg_buf.mtype = NUM_OF_DATA_TYPES + 1;
 	if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) {
-		printf("Msgsnd error!\n");
-		return errno;
+		printf("Error while sending a message!: %s\n", strerror(errno));
+		return -1;
 	}
 	return 0;
 }
@@ -119,8 +119,8 @@ int parse_file(char* filename, int msgid) {
 
 	FILE *fp;
 	if ((fp = fopen(filename,"r")) == NULL) {
-		printf("No such file!\n");
-		return errno;
+		printf("Error while opening file!: %s\n", strerror(errno));
+		return -1;
 	}
 
 	printf("Parsing ""%s""...\n",filename);
@@ -171,8 +171,8 @@ int parse_args(int argc, char **argv) {
 
 int connect_to_message_queue() {
 	if ((g_msgid = msgget(QUEUE_KEY, 0666)) < 0) {
-		printf("Error while connecting to message queue!\n");
-		return errno;
+		printf("Error while connecting to message queue!: %s\n", strerror(errno));
+		return -1;
 	}
 	return 0;
 }
@@ -197,7 +197,7 @@ int scanf_choice() {
 
 int main(int argc, char **argv) {
 	if(parse_args(argc,argv)) return -1;
-	if(connect_to_message_queue()) return errno;
+	if(connect_to_message_queue()) return -1;
 
 	if ((g_parse_filename != NULL) && parse_file(g_parse_filename, g_msgid)) {
 		return -1;
@@ -221,8 +221,9 @@ int main(int argc, char **argv) {
 				memcpy(msg_buf.msg, &data_buf, sizeof(union data));
 				if (msgsnd(g_msgid, &msg_buf, 
 					sizeof(struct message), IPC_NOWAIT) < 0) {
-					printf("Msgsnd error!\n");
-					return errno;
+					printf("Error while sending a message!: %s\n", 
+						strerror(errno));
+					return -1;
 				}
 			} break;
 		}
