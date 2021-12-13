@@ -83,16 +83,16 @@ union data parse_struct(char* str) {
 	return value;
 }
 
-void shut_server(int msgid) {
+int shut_server(int msgid) {
 	struct message msg_buf;
 	union data data_buf;
 
 	msg_buf.mtype = NUM_OF_DATA_TYPES + 1;
 	if (msgsnd(msgid, &msg_buf, sizeof(struct message), IPC_NOWAIT) < 0) {
 		printf("Msgsnd error!\n");
-		exit(errno);
+		return errno;
 	}
-
+	return 0;
 }
 
 char *g_parse_filename = NULL;
@@ -115,6 +115,7 @@ int parse_file(char* filename, int msgid) {
 	size_t len = 0;
 	struct message msg_buf;
 	union data data_buf;
+	int ret = 0;
 
 	FILE *fp;
 	if ((fp = fopen(filename,"r")) == NULL) {
@@ -128,7 +129,7 @@ int parse_file(char* filename, int msgid) {
 		for (int i = 0; i <= NUM_OF_DATA_TYPES; i++) {
 			if (i == NUM_OF_DATA_TYPES) {
 				printf("Invalid type! Line:\n%s\n",line);
-				errno = 1;
+				ret = -1;
 				goto end_parsing;
 			}
 			if (strcmp(type,g_data_type[i]) == 0) {
@@ -138,7 +139,7 @@ int parse_file(char* filename, int msgid) {
 				if (msgsnd(msgid, &msg_buf, 
 					sizeof(struct message), IPC_NOWAIT) < 0) {
 					printf("Msgsnd error!\n");
-					errno = 1;
+					ret = -2;
 					goto end_parsing;
 				}
 				break;
@@ -147,11 +148,10 @@ int parse_file(char* filename, int msgid) {
 	}
 
 	printf("Parsing completed succesfully!\n");
-	errno = 0;
 	end_parsing:
 	fclose(fp);
 	free(line);
-	return errno;
+	return ret;
 }
 
 int parse_args(int argc, char **argv) {
@@ -163,8 +163,7 @@ int parse_args(int argc, char **argv) {
 				break;
 			case '?':
 				printf("Invalid argument!\n");
-				errno = 1;
-				return errno;
+				return -1;
 		};
 	};
 	return 0;
@@ -197,11 +196,11 @@ int scanf_choice() {
 }
 
 int main(int argc, char **argv) {
-	if(parse_args(argc,argv)) return errno;
+	if(parse_args(argc,argv)) return -1;
 	if(connect_to_message_queue()) return errno;
 
-	if ((g_filename != NULL) && parse_file(g_parse_filename, g_msgid)) {
-		return errno;
+	if ((g_parse_filename != NULL) && parse_file(g_parse_filename, g_msgid)) {
+		return -1;
 	}
 
 	struct message msg_buf;
@@ -213,7 +212,7 @@ int main(int argc, char **argv) {
 		msg_buf.mtype = scanf_choice();
 		switch(msg_buf.mtype) {
 			case NUM_OF_DATA_TYPES + 2: 
-				shut_server(g_msgid);
+				if(shut_server(g_msgid)) return -1;
 			case NUM_OF_DATA_TYPES + 1: {
 				exit_program = true;
 			} break;

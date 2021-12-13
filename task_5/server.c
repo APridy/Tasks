@@ -26,7 +26,7 @@ void write_data_to_file(char* data, char* filename) {
 	struct msqid_ds qstatus;
 	if(msgctl(g_msgid,IPC_STAT,&qstatus)<0){
 		printf("Msgctl error!\n");
-		exit(1);
+		exit(-1);
 	}
 	char s[30];
 	strftime(s, 30, "%d.%m.%Y %H:%M:%S", localtime(&(qstatus.msg_rtime)));
@@ -51,14 +51,8 @@ void handle_struct(union data data_buf) {
 	char str[INT_STR_SIZE*3 + 6] = "";
 	printf("Recieved struct: %d , %d , %d\n", data_buf.num3.a, 
 				data_buf.num3.b, data_buf.num3.c);
-	snprintf(buffer,INT_STR_SIZE,"%d",data_buf.num3.a);
-	strcat(str,buffer);
-	strcat(str," , ");
-	snprintf(buffer,INT_STR_SIZE,"%d",data_buf.num3.b);
-	strcat(str,buffer);
-	strcat(str," , ");
-	snprintf(buffer,INT_STR_SIZE,"%d",data_buf.num3.c);
-	strcat(str,buffer);
+	snprintf(str, sizeof(str),": %d , %d , %d", data_buf.num3.a,
+				data_buf.num3.b, data_buf.num3.c);
 	write_data_to_file(str,g_filename[2]);
 }
 
@@ -84,8 +78,7 @@ int parse_args(int argc, char **argv) {
 				break;
 			case '?':
 				printf("Invalid argument!\n");
-				errno = 1;
-				return errno;
+				return -1;
 		};
 	};
 	return 0;
@@ -96,13 +89,13 @@ int apply_daemon_mode() {
 	pid = fork();
 	if(pid < 0) {
 		printf("Error while forking!\n");
-		exit(1);
+		exit(-1);
 	}
 	if(pid > 0) exit(0);
 	umask(0);
 	if((sid = setsid()) < 0) {
 		printf("Error while creating SID!");
-		exit(1);
+		exit(-1);
 	}
 	fclose(stdout);
 	fclose(stdin);
@@ -125,7 +118,7 @@ void (*handle_data[NUM_OF_DATA_TYPES + 1])(union data) = {
 };
 
 int main(int argc, char **argv) {
-	if(parse_args(argc,argv)) return errno;
+	if(parse_args(argc,argv)) return -1;
 	if(g_daemon_mode) apply_daemon_mode();
 	if(create_message_queue()) return errno; 
 
