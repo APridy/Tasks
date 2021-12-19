@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
 		printf("Error while creating socket!: %s\n", strerror(errno));
 		return -1;
 	}
-	bzero(&server_info, sizeof(server_info));
+	//bzero(&server_info, sizeof(server_info));
 
 	server_info.sin_family = AF_INET;
 	server_info.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -68,6 +68,24 @@ int main(int argc, char **argv) {
 	}
 
 	printf("Client connected to the server!\n");
+
+	char buff[80];
+	int n;
+
+	while(1) {
+		bzero(buff, 80);
+		read(connection_id, buff, sizeof(buff));
+		printf("From client: %sTo client: ", buff);
+		bzero(buff, 80);
+		n = 0;
+		while ((buff[n++] = getchar()) != '\n') {}
+		write(connection_id, buff, sizeof(buff)); 
+		if (strncmp("exit", buff, 4) == 0) {
+			printf("Server Exit...\n");
+			break;
+		}
+	}
+
 	close(socket_id);
 	printf("Program execution ended\n");
 	return 0;

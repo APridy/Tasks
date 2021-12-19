@@ -22,12 +22,12 @@ int main() {
 		printf("Error while creating socket!: %s\n", strerror(errno));
 		return -1;
 	}
-	bzero(&server_info, sizeof(server_info));
+	//bzero(&server_info, sizeof(server_info));
 
 	server_info.sin_family = AF_INET;
 	server_info.sin_addr.s_addr = inet_addr(SERVER_IP);
 	server_info.sin_port = htons(TCP_PORT);
-
+	//close(socket_id);
 	if (connect(socket_id, (struct sockaddr*)&server_info, sizeof(server_info))) {
 		printf("Failed to connect to server!: %s\n", strerror(errno));
 		close(socket_id);
@@ -35,6 +35,23 @@ int main() {
 	}
 	else {
 		printf("Connected to the server!\n");
+	}
+
+	char buff[80];
+	int n;
+	while(1) {
+		//bzero(buff, sizeof(buff));
+		printf("Enter the string : ");
+		n = 0;
+		while ((buff[n++] = getchar()) != '\n') {}
+		write(socket_id, buff, sizeof(buff));
+		//bzero(buff, sizeof(buff));
+		read(socket_id, buff, sizeof(buff));
+		printf("From Server : %s", buff);
+		if ((strncmp(buff, "exit", 4)) == 0) {
+			printf("Client Exit...\n");
+			break;
+		}
 	}
 
 	close(socket_id);
