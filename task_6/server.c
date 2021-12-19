@@ -2,6 +2,15 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <netdb.h>
+#include <netinet/in.h>
+
+#define TCP_PORT 5665
 
 int g_thread_mode = 0, g_process_mode = 0;
 
@@ -20,9 +29,46 @@ int parse_args(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+	int socket_id, connection_id;
+	struct sockaddr_in server_info, client_info;
+
 	if(parse_args(argc,argv)) return -1;
 	printf("Parsing succesful!\n");
-	if(g_thread_mode) printf("Thread\n");
-	if(g_process_mode) printf("Process\n");
+	//if(g_thread_mode) printf("Thread\n");
+	//if(g_process_mode) printf("Process\n");
+	//system("ls ../");
+	if((socket_id = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+		printf("Error while creating socket!: %s\n", strerror(errno));
+		return -1;
+	}
+	bzero(&server_info, sizeof(server_info));
+
+	server_info.sin_family = AF_INET;
+	server_info.sin_addr.s_addr = htonl(INADDR_ANY);
+	server_info.sin_port = htons(TCP_PORT);
+
+	if (bind(socket_id, (struct sockaddr*)&server_info, sizeof(server_info))) {
+		printf("Error while binding socket!: %s\n", strerror(errno));
+		close(socket_id);
+		return -1;
+	}
+    
+	if (listen(socket_id, 5)) {
+		printf("Error while listening!: %s\n", strerror(errno));
+		close(socket_id);
+		return -1;
+	}
+
+	int len = sizeof(client_info);
+	connection_id = accept(socket_id, (struct sockaddr*)&client_info, &len);
+	if (connection_id < 0) {
+		printf("Server accept error!: %s\n", strerror(errno));
+		close(socket_id);
+		return -1;
+	}
+
+	printf("Client connected to the server!\n");
+	close(socket_id);
+	printf("Program execution ended\n");
 	return 0;
 }
