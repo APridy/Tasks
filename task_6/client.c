@@ -46,9 +46,9 @@ int main() {
 		//while ((buff[n++] = getchar()) != '\n') {}
 		scanf("%s",buff);
 		write(socket_id, buff, sizeof(buff));
-		bzero(buff, sizeof(buff));
-		read(socket_id, buff, sizeof(buff));
-		printf("From Server : %s\n", buff);
+		//bzero(buff, sizeof(buff));
+		//read(socket_id, buff, sizeof(buff));
+		//printf("From Server : %s\n", buff);
 		if ((strncmp(buff, "exit", 4)) == 0) {
 			printf("Client Exit...\n");
 			break;
