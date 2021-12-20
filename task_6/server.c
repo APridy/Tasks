@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 	char command[BUFF_SIZE];
 
 	while(1) {
-		//bzero(buff, BUFF_SIZE);
+		bzero(command, BUFF_SIZE);
 		read(connection_id, command, BUFF_SIZE);
 		printf("Command from client: %s\n", command);
 		if (strncmp("exit", command, 4) == 0) {
@@ -92,17 +92,14 @@ int main(int argc, char **argv) {
 			result = (char*)realloc(result, size + strlen(buff));
 			strcpy(result + size - 1, buff);
 			size += strlen(buff);
+			bzero(command, BUFF_SIZE);
 		}
 		pclose(fp);
-		printf("%s",result);
-		//printf("\n\n%d\n",size);
-		//pclose(fp); 
+		//printf("%s",result); //uncomment to print command output
 		for(int i = 0; i < strlen(result); i += BUFF_SIZE) {
 			write(connection_id, result + i, BUFF_SIZE);
-			//printf("%d\n", i);
 		}
-		//char* test = "";
-		//write(connection_id, test, 0);
+		write(connection_id, "q", 1);
 	}
 
 	close(socket_id);

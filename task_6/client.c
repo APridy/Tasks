@@ -19,7 +19,6 @@ int main() {
 	int socket_id, connection_id;
 	struct sockaddr_in server_info, client_info;
 
-	//close(socket_id);
 	if((socket_id = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		printf("Error while creating socket!: %s\n", strerror(errno));
 		return -1;
@@ -36,11 +35,11 @@ int main() {
 	else {
 		printf("Connected to the server!\n");
 	}
-	printf("Enter \"exit\" to exit program\n");
 	char buff[BUFF_SIZE];
 	while(1) {
 		bzero(buff, BUFF_SIZE);
-		printf("Enter the string : ");
+		printf("Enter \"exit\" to exit program\n");
+		printf("Enter the command : ");
 		scanf("%[^\n]%*c",buff);
 		write(socket_id, buff, BUFF_SIZE);
 		if ((strncmp(buff, "exit", 4)) == 0) {
@@ -49,17 +48,10 @@ int main() {
 		}
 		bzero(buff, sizeof(buff));
 		int n = 0;
-		while(1) {
-			//read(socket_id, buff, BUFF_SIZE);
-			//if(strlen(buff) == 0) break;
-			n = read(socket_id, buff, BUFF_SIZE);
-			//if(n == 0) break;
-			//buff[BUFF_SIZE] = '\0';
+		while(n = read(socket_id, buff, BUFF_SIZE) != 1) {
 			printf("%.*s", BUFF_SIZE, buff);
-			//printf("\n\n%d\n\n",n);
 			bzero(buff, BUFF_SIZE);
 		}
-		//printf("%s\n", buff);
 	}
 
 	close(socket_id);
