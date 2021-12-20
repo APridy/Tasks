@@ -75,10 +75,12 @@ int main(int argc, char **argv) {
 	while(1) {
 		bzero(buff, 80);
 		read(connection_id, buff, sizeof(buff));
-		printf("From client: %sTo client: ", buff);
+		printf("From client: %s\n", buff);
 		bzero(buff, 80);
 		n = 0;
-		while ((buff[n++] = getchar()) != '\n') {}
+		//while ((buff[n++] = getchar()) != '\n') {}
+		printf("To client: ");
+		scanf("%s",buff);
 		write(connection_id, buff, sizeof(buff)); 
 		if (strncmp("exit", buff, 4) == 0) {
 			printf("Server Exit...\n");

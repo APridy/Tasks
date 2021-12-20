@@ -40,14 +40,15 @@ int main() {
 	char buff[80];
 	int n;
 	while(1) {
-		//bzero(buff, sizeof(buff));
+		bzero(buff, sizeof(buff));
 		printf("Enter the string : ");
 		n = 0;
-		while ((buff[n++] = getchar()) != '\n') {}
+		//while ((buff[n++] = getchar()) != '\n') {}
+		scanf("%s",buff);
 		write(socket_id, buff, sizeof(buff));
-		//bzero(buff, sizeof(buff));
+		bzero(buff, sizeof(buff));
 		read(socket_id, buff, sizeof(buff));
-		printf("From Server : %s", buff);
+		printf("From Server : %s\n", buff);
 		if ((strncmp(buff, "exit", 4)) == 0) {
 			printf("Client Exit...\n");
 			break;
