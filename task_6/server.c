@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 
 #define TCP_PORT 5665
+#define BUFF_SIZE 80
 
 int g_thread_mode = 0, g_process_mode = 0;
 
@@ -36,12 +37,11 @@ int main(int argc, char **argv) {
 	printf("Parsing succesful!\n");
 	//if(g_thread_mode) printf("Thread\n");
 	//if(g_process_mode) printf("Process\n");
-	//system("ls ../");
+
 	if((socket_id = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		printf("Error while creating socket!: %s\n", strerror(errno));
 		return -1;
 	}
-	//bzero(&server_info, sizeof(server_info));
 
 	server_info.sin_family = AF_INET;
 	server_info.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -69,22 +69,18 @@ int main(int argc, char **argv) {
 
 	printf("Client connected to the server!\n");
 
-	char buff[80];
+	char buff[BUFF_SIZE];
 
 	while(1) {
-		bzero(buff, 80);
-		read(connection_id, buff, sizeof(buff));
+		bzero(buff, BUFF_SIZE);
+		read(connection_id, buff, BUFF_SIZE);
 		printf("From client: %s\n", buff);
-		n = 0;
-		system("ls ./");
-		//while ((buff[n++] = getchar()) != '\n') {}
-		//printf("To client: ");
-		//scanf("%s",buff);
 		//write(connection_id, buff, sizeof(buff)); 
 		if (strncmp("exit", buff, 4) == 0) {
 			printf("Server Exit...\n");
 			break;
 		}
+		system(buff);
 	}
 
 	close(socket_id);
