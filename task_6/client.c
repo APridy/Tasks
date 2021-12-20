@@ -12,7 +12,7 @@
 #include <arpa/inet.h>
 
 #define TCP_PORT 5665
-#define BUFF_SIZE 20
+#define BUFF_SIZE 80
 #define SERVER_IP "127.0.0.1"
 
 int main() {
@@ -43,13 +43,23 @@ int main() {
 		printf("Enter the string : ");
 		scanf("%[^\n]%*c",buff);
 		write(socket_id, buff, BUFF_SIZE);
-		//bzero(buff, sizeof(buff));
-		//read(socket_id, buff, sizeof(buff));
-		//printf("%s\n", buff);
 		if ((strncmp(buff, "exit", 4)) == 0) {
 			printf("Client Exit...\n");
 			break;
 		}
+		bzero(buff, sizeof(buff));
+		int n = 0;
+		while(1) {
+			//read(socket_id, buff, BUFF_SIZE);
+			//if(strlen(buff) == 0) break;
+			n = read(socket_id, buff, BUFF_SIZE);
+			//if(n == 0) break;
+			//buff[BUFF_SIZE] = '\0';
+			printf("%.*s", BUFF_SIZE, buff);
+			//printf("\n\n%d\n\n",n);
+			bzero(buff, BUFF_SIZE);
+		}
+		//printf("%s\n", buff);
 	}
 
 	close(socket_id);

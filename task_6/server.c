@@ -93,10 +93,16 @@ int main(int argc, char **argv) {
 			strcpy(result + size - 1, buff);
 			size += strlen(buff);
 		}
+		pclose(fp);
 		printf("%s",result);
 		//printf("\n\n%d\n",size);
-		pclose(fp);
-		//write(connection_id, buff, sizeof(buff)); 
+		//pclose(fp); 
+		for(int i = 0; i < strlen(result); i += BUFF_SIZE) {
+			write(connection_id, result + i, BUFF_SIZE);
+			//printf("%d\n", i);
+		}
+		//char* test = "";
+		//write(connection_id, test, 0);
 	}
 
 	close(socket_id);
