@@ -12,12 +12,14 @@
 #include <arpa/inet.h>
 
 #define TCP_PORT 5665
-#define BUFF_SIZE 80
+#define BUFF_SIZE 20
 #define SERVER_IP "127.0.0.1"
 
 int main() {
 	int socket_id, connection_id;
 	struct sockaddr_in server_info, client_info;
+
+	//close(socket_id);
 	if((socket_id = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		printf("Error while creating socket!: %s\n", strerror(errno));
 		return -1;
@@ -43,7 +45,7 @@ int main() {
 		write(socket_id, buff, BUFF_SIZE);
 		//bzero(buff, sizeof(buff));
 		//read(socket_id, buff, sizeof(buff));
-		//printf("From Server : %s\n", buff);
+		//printf("%s\n", buff);
 		if ((strncmp(buff, "exit", 4)) == 0) {
 			printf("Client Exit...\n");
 			break;

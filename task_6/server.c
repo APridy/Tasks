@@ -69,18 +69,34 @@ int main(int argc, char **argv) {
 
 	printf("Client connected to the server!\n");
 
-	char buff[BUFF_SIZE];
+	char command[BUFF_SIZE];
 
 	while(1) {
-		bzero(buff, BUFF_SIZE);
-		read(connection_id, buff, BUFF_SIZE);
-		printf("From client: %s\n", buff);
-		//write(connection_id, buff, sizeof(buff)); 
-		if (strncmp("exit", buff, 4) == 0) {
+		//bzero(buff, BUFF_SIZE);
+		read(connection_id, command, BUFF_SIZE);
+		printf("Command from client: %s\n", command);
+		if (strncmp("exit", command, 4) == 0) {
 			printf("Server Exit...\n");
 			break;
 		}
-		system(buff);
+
+		FILE *fp;
+		char buff[BUFF_SIZE];
+		if((fp = popen(command, "r")) == NULL) {
+			printf("Failed to run command\n" );
+		}
+
+		char* result = NULL;
+		int size = 1;
+		while (fgets(buff, BUFF_SIZE, fp) != NULL) {
+			result = (char*)realloc(result, size + strlen(buff));
+			strcpy(result + size - 1, buff);
+			size += strlen(buff);
+		}
+		printf("%s",result);
+		//printf("\n\n%d\n",size);
+		pclose(fp);
+		//write(connection_id, buff, sizeof(buff)); 
 	}
 
 	close(socket_id);
