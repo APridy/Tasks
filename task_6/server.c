@@ -85,7 +85,6 @@ int main(int argc, char **argv) {
 		if((fp = popen(command, "r")) == NULL) {
 			printf("Failed to run command\n" );
 		}
-
 		char* result = NULL;
 		int size = 1;
 		while (fgets(buff, BUFF_SIZE, fp) != NULL) {
@@ -96,8 +95,10 @@ int main(int argc, char **argv) {
 		}
 		pclose(fp);
 		//printf("%s",result); //uncomment to print command output
-		for(int i = 0; i < strlen(result); i += BUFF_SIZE) {
-			write(connection_id, result + i, BUFF_SIZE);
+		if(result != NULL) {
+			for(int i = 0; i < strlen(result); i += BUFF_SIZE) {
+				write(connection_id, result + i, BUFF_SIZE);
+			}
 		}
 		write(connection_id, "q", 1);
 	}
