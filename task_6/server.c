@@ -10,9 +10,7 @@
 #include <pthread.h>
 #include <netdb.h>
 #include <netinet/in.h>
-
-#define TCP_PORT 5665
-#define BUFF_SIZE 256
+#include "tcp_settings.h"
 
 int g_socket_id;
 int g_thread_mode = 0, g_process_mode = 0;

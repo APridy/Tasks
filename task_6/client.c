@@ -10,10 +10,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-#define TCP_PORT 5665
-#define BUFF_SIZE 256
-#define SERVER_IP "127.0.0.1"
+#include "tcp_settings.h"
 
 int main() {
 	int socket_id, connection_id;
