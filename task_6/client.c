@@ -13,10 +13,10 @@
 #include "tcp_settings.h"
 
 int main() {
-	int socket_id, connection_id;
-	struct sockaddr_in server_info, client_info;
+	int socket_id;
+	struct sockaddr_in server_info;
 
-	if((socket_id = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+	if((socket_id = socket(AF_INET, SOCK_STREAM, 0)) == -1) { //create socket
 		printf("Error while creating socket!: %s\n", strerror(errno));
 		return -1;
 	}
@@ -24,7 +24,8 @@ int main() {
 	server_info.sin_family = AF_INET;
 	server_info.sin_addr.s_addr = inet_addr(SERVER_IP);
 	server_info.sin_port = htons(TCP_PORT);
-	if (connect(socket_id, (struct sockaddr*)&server_info, sizeof(server_info))) {
+
+	if (connect(socket_id, (struct sockaddr*)&server_info, sizeof(server_info))) { //connect to server
 		printf("Failed to connect to server!: %s\n", strerror(errno));
 		close(socket_id);
 		return -1;
@@ -34,37 +35,38 @@ int main() {
 	}
 
 	char buff[BUFF_SIZE];
-	while(1) {
-		bzero(buff, BUFF_SIZE);
+	while(1) { //endless loop for writing commands
 		printf("Enter \"exit\" to exit program\n");
 		printf("Enter \"shut\" to shut server\n");
 		printf("Enter the command : ");
 		scanf("%[^\n]%*c",buff);
+
 		if (write(socket_id, buff, BUFF_SIZE) == -1) {
-			printf("Error while writing to server!: %s\n", strerror(errno));	
+			printf("Error while writing to server!: %s\n", strerror(errno));
 			return -1;
 		}
 		if (strncmp(buff, "exit", 4) == 0 || strncmp(buff, "shut", 4) == 0) {
 			printf("Client Exit...\n");
 			break;
 		}
-		bzero(buff, sizeof(buff));
+
+		bzero(buff, BUFF_SIZE);
 		bool stop_reading = false;
-		while(!stop_reading) {
+		while(!stop_reading) { //recieve output from server
 			switch(read(socket_id, buff, BUFF_SIZE)) {
 				case 1: //special message to indicate transmission end 
 					stop_reading = true; 
 					break;
 				case -1: 
-					printf("Error while reading output!:%s\n", 
-							strerror(errno));
+					printf("Error while reading output!:%s\n", strerror(errno));
 					return -1;
-				default: 
+				default: //print output to console
 					printf("%.*s", BUFF_SIZE, buff);
 					bzero(buff, BUFF_SIZE);
 					break;
 			}
 		}
+		bzero(buff, BUFF_SIZE);
 	}
 
 	close(socket_id);

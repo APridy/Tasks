@@ -60,19 +60,19 @@ int handle_connection(int connection_id, int client_num) {
 		}
 		char* command_output = NULL;
 		int size = 1;
-		while (fgets(buff, BUFF_SIZE, fp) != NULL) {
+		while (fgets(buff, BUFF_SIZE, fp) != NULL) { //write command output into string
 			command_output = (char*)realloc(command_output, size + strlen(buff));
 			strcpy(command_output + size - 1, buff);
 			size += strlen(buff);
 			bzero(command, BUFF_SIZE);
 		}
 		pclose(fp);
-		if(command_output != NULL) {
+		if(command_output != NULL) { //send output string by portions size of BUFF_SIZE
 			for(int i = 0; i < strlen(command_output); i += BUFF_SIZE) {
 				write(connection_id, command_output + i, BUFF_SIZE);
 			}
 		}
-		write(connection_id, "q", 1);
+		write(connection_id, "q", 1); //send quit message to end reading in client
 	}
 
 	return 0;
@@ -82,7 +82,8 @@ void* handle_connection_thread(void* arg) {
 	int* connection_id = (int*)arg;
 	int* client_num = (int*)(arg + sizeof(int));
 	if(handle_connection(*connection_id, *client_num) == 1) {
-		printf("Program execution ended.\n");
+		printf("Program execution ended.\n"); //shut server after recieving "shut" command
+		close(g_socket_id);
 		exit(0);
 	}
 }
@@ -103,6 +104,7 @@ int main(int argc, char **argv) {
 		printf("Error! Choose only one mode.\n");
 		return -1;
 	}
+
 	if(g_thread_mode) printf("Initializing server... (multithreading mode)\n");
 	else printf("Initializing server... (multiprocessing mode)\n");
 
@@ -134,19 +136,22 @@ int main(int argc, char **argv) {
 		struct sockaddr_in client_info;
 		int connection_id;
 		int len = sizeof(client_info);
-		connection_id = accept(g_socket_id, (struct sockaddr*)&client_info, &len);
+
+		connection_id = accept(g_socket_id, (struct sockaddr*)&client_info, &len);//accepting client connection
 		if (connection_id < 0) {
 			printf("Server accept error!: %s\n", strerror(errno));
 			close(g_socket_id);
 			return -1;
 		}
-		if(!g_thread_mode) {
+
+		if(!g_thread_mode) { //creating new process/thread
 			create_process(&handle_connection, connection_id, client_num);
 		}
 		else {
 			int args[2] = {connection_id, client_num};
 			pthread_create(&threads[client_num - 1], NULL, handle_connection_thread, &args);
 		}
+
 		printf("Client %d connected to the server!\n", client_num);
 		client_num++;
 	}
