@@ -16,6 +16,7 @@
 
 int g_socket_id;
 int g_thread_mode = 0, g_process_mode = 0;
+bool g_shut_server = false;
 
 const struct option long_options[] = {
 	{ "pthreads", no_argument, &g_thread_mode, 1 },
@@ -50,8 +51,8 @@ int handle_connection(int connection_id, int client_num) {
 			break;
 		}
 		if (strncmp("shut", command, 4) == 0) {
-                        printf("Client %d is closing server!\n", client_num);
-                        break;
+			printf("Client %d is closing server!\n", client_num);
+			return 1;
                 }
 
 		FILE *fp;
@@ -79,45 +80,13 @@ int handle_connection(int connection_id, int client_num) {
 	return 0;
 }
 
-void* handle_connection_t(int connection_id, int client_num) {
-        char command[BUFF_SIZE];
-        while(1) {
-                bzero(command, BUFF_SIZE);
-                read(connection_id, command, BUFF_SIZE);
-                printf("Command from client %d: %s\n", client_num, command);
-
-                if (strncmp("exit", command, 4) == 0) {
-                        printf("Client %d closed connection!\n", client_num);
-                        break;
-                }
-                if (strncmp("shut", command, 4) == 0) {
-                        printf("Client %d is closing server!\n", client_num);
-                        break;
-                }
-
-                FILE *fp;
-                char buff[BUFF_SIZE];
-                if((fp = popen(command, "r")) == NULL) {
-                        printf("Failed to run command\n" );
-                }
-                char* command_output = NULL;
-                int size = 1;
-                while (fgets(buff, BUFF_SIZE, fp) != NULL) {
-                        command_output = (char*)realloc(command_output, size + strlen(buff));
-                        strcpy(command_output + size - 1, buff);
-                        size += strlen(buff);
-                        bzero(command, BUFF_SIZE);
-                }
-                pclose(fp);
-                if(command_output != NULL) {
-                        for(int i = 0; i < strlen(command_output); i += BUFF_SIZE) {
-                                write(connection_id, command_output + i, BUFF_SIZE);
-                        }
-                }
-                write(connection_id, "q", 1);
-        }
-
-        exit(0);
+void* handle_connection_thread(void* arg) {
+	int* connection_id = (int*)arg;
+	int* client_num = (int*)(arg + sizeof(int));
+	if(handle_connection(*connection_id, *client_num) == 1) {
+		printf("Program execution ended.\n");
+		exit(0);
+	}
 }
 
 int parse_args(int argc, char **argv) {
@@ -140,7 +109,7 @@ int main(int argc, char **argv) {
 	else printf("Initializing server... (multiprocessing mode)\n");
 
 	if((g_socket_id = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		printf("Error while creating socket!: %s\n", strerror(errno));
+	printf("Error while creating socket!: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -159,7 +128,7 @@ int main(int argc, char **argv) {
 		close(g_socket_id);
 		return -1;
 	}
-	
+
 	printf("Server initialization completed! Listening...\n");
 	int client_num = 1;
 	pthread_t threads[100]; 
@@ -173,12 +142,16 @@ int main(int argc, char **argv) {
 			close(g_socket_id);
 			return -1;
 		}
-		if(!g_thread_mode) create_process(&handle_connection, connection_id, client_num);
-		//else pthread_create(&threads[client_num - 1], NULL, 
-		//	&handle_connection_t, NULL);
+		if(!g_thread_mode) {
+			create_process(&handle_connection, connection_id, client_num);
+		}
+		else {
+			int args[2] = {connection_id, client_num};
+			pthread_create(&threads[client_num - 1], NULL, handle_connection_thread, &args);
+		}
 		printf("Client %d connected to the server!\n", client_num);
 		client_num++;
-	}	
+	}
 	close(g_socket_id);
 	printf("Program execution ended\n");
 	return 0;

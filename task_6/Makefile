@@ -5,7 +5,7 @@ CLIENT_TARGET = client
 CLIENT_SOURCE = $(CLIENT_TARGET).c
 
 all:
-	$(CC) -o $(SERVER_TARGET) $(SERVER_SOURCE)
+	$(CC) -pthread -o $(SERVER_TARGET) $(SERVER_SOURCE)
 	$(CC) -o $(CLIENT_TARGET) $(CLIENT_SOURCE)
 
 clean:

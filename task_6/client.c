@@ -55,7 +55,7 @@ int main() {
 		bool stop_reading = false;
 		while(!stop_reading) {
 			switch(read(socket_id, buff, BUFF_SIZE)) {
-				case 1: //special message to indicate termination 
+				case 1: //special message to indicate transmission end 
 					stop_reading = true; 
 					break;
 				case -1: 
