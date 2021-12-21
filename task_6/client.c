@@ -35,22 +35,38 @@ int main() {
 	else {
 		printf("Connected to the server!\n");
 	}
+
 	char buff[BUFF_SIZE];
 	while(1) {
 		bzero(buff, BUFF_SIZE);
 		printf("Enter \"exit\" to exit program\n");
+		printf("Enter \"shut\" to shut server\n");
 		printf("Enter the command : ");
 		scanf("%[^\n]%*c",buff);
-		write(socket_id, buff, BUFF_SIZE);
-		if ((strncmp(buff, "exit", 4)) == 0) {
+		if (write(socket_id, buff, BUFF_SIZE) == -1) {
+			printf("Error while writing to server!: %s\n", strerror(errno));	
+			return -1;
+		}
+		if (strncmp(buff, "exit", 4) == 0 || strncmp(buff, "shut", 4) == 0) {
 			printf("Client Exit...\n");
 			break;
 		}
 		bzero(buff, sizeof(buff));
-		int n = 0;
-		while(n = read(socket_id, buff, BUFF_SIZE) != 1) {
-			printf("%.*s", BUFF_SIZE, buff);
-			bzero(buff, BUFF_SIZE);
+		bool stop_reading = false;
+		while(!stop_reading) {
+			switch(read(socket_id, buff, BUFF_SIZE)) {
+				case 1: //special message to indicate termination 
+					stop_reading = true; 
+					break;
+				case -1: 
+					printf("Error while reading output!:%s\n", 
+							strerror(errno));
+					return -1;
+				default: 
+					printf("%.*s", BUFF_SIZE, buff);
+					bzero(buff, BUFF_SIZE);
+					break;
+			}
 		}
 	}
 
