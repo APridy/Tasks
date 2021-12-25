@@ -21,6 +21,12 @@ int main() {
 		return -1;
 	}
 
+	int option = 1;
+	if(setsockopt(socket_id, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option)) == -1) {
+		printf("Error while setting socket options!: %s\n", strerror(errno));
+		return -1;
+	}
+
 	server_info.sin_family = AF_INET;
 	server_info.sin_addr.s_addr = inet_addr(SERVER_IP);
 	server_info.sin_port = htons(TCP_PORT);
@@ -41,7 +47,7 @@ int main() {
 		printf("Enter the command : ");
 		scanf("%[^\n]%*c",buff);
 
-		if (write(socket_id, buff, BUFF_SIZE) == -1) {
+		if (send(socket_id, buff, BUFF_SIZE, 0) == -1) {
 			printf("Error while writing to server!: %s\n", strerror(errno));
 			return -1;
 		}
@@ -53,7 +59,7 @@ int main() {
 		bzero(buff, BUFF_SIZE);
 		bool stop_reading = false;
 		while(!stop_reading) { //recieve output from server
-			switch(read(socket_id, buff, BUFF_SIZE)) {
+			switch(recv(socket_id, buff, BUFF_SIZE, 0)) {
 				case 1: //special message to indicate transmission end 
 					stop_reading = true; 
 					break;

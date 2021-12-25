@@ -41,7 +41,7 @@ int handle_connection(int connection_id, int client_num) {
 	char command[BUFF_SIZE];
 	while(1) {
 		bzero(command, BUFF_SIZE);
-		read(connection_id, command, BUFF_SIZE);
+		recv(connection_id, command, BUFF_SIZE, 0);
 		printf("Command from client %d: %s\n", client_num, command);
 
 		if (strncmp("exit", command, 4) == 0) {
@@ -58,16 +58,16 @@ int handle_connection(int connection_id, int client_num) {
 		if((fp = popen(command, "r")) == NULL) {
 			printf("Failed to run command!\n" );
 			strncpy(buff, "Failed to run command!\n", BUFF_SIZE);
-			write(connection_id, buff, BUFF_SIZE);
+			send(connection_id, buff, BUFF_SIZE, 0);
 			continue;
 		}
 		while (fgets(buff, BUFF_SIZE, fp) != NULL) { //write command output into string
-			write(connection_id, buff, BUFF_SIZE);
+			send(connection_id, buff, BUFF_SIZE, 0);
 			bzero(buff,BUFF_SIZE);
 		}
 		bzero(command, BUFF_SIZE);
 		pclose(fp);
-		write(connection_id, "q", 1); //send quit message to end reading in client
+		send(connection_id, "q", 1, 0); //send quit message to end reading in client
 	}
 
 	return 0;
@@ -102,9 +102,15 @@ int main(int argc, char **argv) {
 
 	if(g_thread_mode) printf("Initializing server... (multithreading mode)\n");
 	else printf("Initializing server... (multiprocessing mode)\n");
-
+	
 	if((g_socket_id = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-	printf("Error while creating socket!: %s\n", strerror(errno));
+		printf("Error while creating socket!: %s\n", strerror(errno));
+		return -1;
+	}
+
+	int option = 1;
+	if(setsockopt(g_socket_id, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option)) == -1) {
+		printf("Error while setting socket options!: %s\n", strerror(errno));
 		return -1;
 	}
 
