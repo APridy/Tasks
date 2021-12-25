@@ -51,7 +51,7 @@ int handle_connection(int connection_id, int client_num) {
 		if (strncmp("shut", command, 4) == 0) {
 			printf("Client %d is closing server!\n", client_num);
 			return 1;
-                }
+		}
 
 		FILE *fp;
 		char buff[BUFF_SIZE];
@@ -59,19 +59,14 @@ int handle_connection(int connection_id, int client_num) {
 			printf("Failed to run command\n" );
 		}
 		char* command_output = NULL;
+		command_output = (char*)malloc(BUFF_SIZE);
 		int size = 1;
 		while (fgets(buff, BUFF_SIZE, fp) != NULL) { //write command output into string
-			command_output = (char*)realloc(command_output, size + strlen(buff));
-			strcpy(command_output + size - 1, buff);
-			size += strlen(buff);
-			bzero(command, BUFF_SIZE);
+			strcpy(command_output,buff);
+			write(connection_id, command_output, BUFF_SIZE);
 		}
+		bzero(command, BUFF_SIZE);
 		pclose(fp);
-		if(command_output != NULL) { //send output string by portions size of BUFF_SIZE
-			for(int i = 0; i < strlen(command_output); i += BUFF_SIZE) {
-				write(connection_id, command_output + i, BUFF_SIZE);
-			}
-		}
 		write(connection_id, "q", 1); //send quit message to end reading in client
 	}
 
