@@ -56,14 +56,14 @@ int handle_connection(int connection_id, int client_num) {
 		FILE *fp;
 		char buff[BUFF_SIZE];
 		if((fp = popen(command, "r")) == NULL) {
-			printf("Failed to run command\n" );
+			printf("Failed to run command!\n" );
+			strncpy(buff, "Failed to run command!\n", BUFF_SIZE);
+			write(connection_id, buff, BUFF_SIZE);
+			continue;
 		}
-		char* command_output = NULL;
-		command_output = (char*)malloc(BUFF_SIZE);
-		int size = 1;
 		while (fgets(buff, BUFF_SIZE, fp) != NULL) { //write command output into string
-			strcpy(command_output,buff);
-			write(connection_id, command_output, BUFF_SIZE);
+			write(connection_id, buff, BUFF_SIZE);
+			bzero(buff,BUFF_SIZE);
 		}
 		bzero(command, BUFF_SIZE);
 		pclose(fp);
