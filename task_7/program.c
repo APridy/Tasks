@@ -6,26 +6,21 @@
 unsigned int g_interval[2] = {0 , 0};
 
 int parse_args(int argc, char **argv) {
-	char arg = 0;
-	while ((arg = getopt(argc,argv,"b:e:")) != -1) {
-		switch (arg) {
-			case 'b':
-				g_interval[0] = atoi(optarg);
-				break;
-			case 'e':
-				g_interval[1] = atoi(optarg);
-				break;
-			case '?':
-				printf("Invalid argument!\n");
-				return -1;
-		};
-	};
+	if (argc > 3) return -1;
+	if (argc > 1) {
+		if(!(g_interval[0] = atoi(argv[1]))) return -1;
+	}
+	if (argc > 2) {
+		if(!(g_interval[1] = atoi(argv[2]))) return -1;
+	}
 	return 0;
-
 }
 
 int main(int argc, char **argv) {
-	if(parse_args(argc, argv)) return -1;	
+	if (parse_args(argc, argv)) {
+		printf("Invalid arguments! Try ./program <interval_start> <interval_end>\n");
+		return -1;
+	}
 	printf("%d\n%d\n", g_interval[0], g_interval[1]);
 	return 0;
 }
