@@ -75,24 +75,31 @@ int cut_video(char* input_file, char* output_file, int interval_start, int inter
 	}
 
 	for (int i = 0; i < input_media->avfc->nb_streams; i++) {
-		AVStream *out_stream = avformat_new_stream(output_media->avfc, avcodec_find_decoder(input_media->avfc->streams[i]->codecpar->codec_id));
-
-		if (!out_stream) {
-			printf("Failed allocating output stream\n");
-			ret = AVERROR_UNKNOWN;
-			goto end;
-		}
-
-		if (avcodec_parameters_copy(out_stream->codecpar, input_media->avfc->streams[i]->codecpar) < 0) {
-			printf("Error: failed to copy codec parameters from input to output stream codec parameters\n");
-			goto end;
-		}
-
 		if (input_media->avfc->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-			output_media->video_avs = out_stream;
+			output_media->video_avs = avformat_new_stream(output_media->avfc, avcodec_find_decoder(input_media->avfc->streams[i]->codecpar->codec_id));;
+			if (!output_media->video_avs) {
+				printf("Failed allocating output stream\n");
+				ret = AVERROR_UNKNOWN;
+				goto end;
+			}
+
+			if (avcodec_parameters_copy(output_media->video_avs->codecpar, input_media->avfc->streams[i]->codecpar) < 0) {
+				printf("Error: failed to copy codec parameters from input to output stream codec parameters\n");
+				goto end;
+			}
 		}
 		if (input_media->avfc->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-			output_media->audio_avs = out_stream;
+			output_media->audio_avs = avformat_new_stream(output_media->avfc, avcodec_find_decoder(input_media->avfc->streams[i]->codecpar->codec_id));;
+			if (!output_media->audio_avs) {
+				printf("Failed allocating output stream\n");
+				ret = AVERROR_UNKNOWN;
+				goto end;
+			}
+
+			if (avcodec_parameters_copy(output_media->audio_avs->codecpar, input_media->avfc->streams[i]->codecpar) < 0) {
+				printf("Error: failed to copy codec parameters from input to output stream codec parameters\n");
+				goto end;
+			}
 		}
 	}
 
@@ -131,12 +138,16 @@ int cut_video(char* input_file, char* output_file, int interval_start, int inter
 
 	while (1) {
 		AVStream *in_stream, *out_stream;
-		
+
 		ret = av_read_frame(input_media->avfc, pkt);
 		if (ret < 0) break;
 
 		in_stream  = input_media->avfc->streams[pkt->stream_index];
 		out_stream = output_media->avfc->streams[pkt->stream_index];
+
+		if (interval_end > input_media->avfc->duration * av_q2d(in_stream->time_base)) {
+			interval_end = 0;
+		}
 
 		if (interval_end != 0) { //if interval_end is not specified (interval_end == 0) read packets till video ends
 			if (av_q2d(in_stream->time_base) * pkt->pts > interval_end) {
