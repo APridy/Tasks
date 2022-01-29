@@ -18,20 +18,10 @@
 #define FILE_PATH "./resources/mando_test.mkv"
 #define OUTPUT_PATH "./output.mkv"
 #define SCALER 2
+#define AUDIO 0
+#define VIDEO 1
 
 unsigned int g_interval[2] = {0 , 0};
-
-typedef struct StreamingParams {
-	char copy_video;
-	char copy_audio;
-	char *output_extension;
-	char *muxer_opt_key;
-	char *muxer_opt_value;
-	char *video_codec;
-	char *audio_codec;
-	char *codec_priv_key;
-	char *codec_priv_value;
-} StreamingParams;
 
 typedef struct StreamingContext {
 	AVFormatContext *avfc;
@@ -48,8 +38,7 @@ typedef struct StreamingContext {
 	char *filename;
 } StreamingContext;
 
-static int select_sample_rate(const AVCodec *codec)
-{
+static int select_sample_rate(const AVCodec *codec) {
 	const int *p;
 	int best_samplerate = 0;
 	if (!codec->supported_samplerates)
@@ -99,37 +88,82 @@ int create_streams(StreamingContext *input_media, StreamingContext *output_media
 }
 
 int prepare_video_decoder(StreamingContext *input_media) {
+	int ret;
 	input_media->video_avc = avcodec_find_decoder(input_media->video_avs->codecpar->codec_id);
+	if (!input_media->video_avc) {
+		return -1;
+	}
 	input_media->video_avcc = avcodec_alloc_context3(input_media->video_avc);
-	avcodec_parameters_to_context(input_media->video_avcc, input_media->video_avs->codecpar);
-	avcodec_open2(input_media->video_avcc, input_media->video_avc, NULL);
+	if (!input_media->video_avcc) {
+		return -1;
+	}
+	ret = avcodec_parameters_to_context(input_media->video_avcc, input_media->video_avs->codecpar);
+	if (ret < 0) {
+		return ret;
+	}
+	ret = avcodec_open2(input_media->video_avcc, input_media->video_avc, NULL);
+	if (ret < 0) {
+		return ret;
+	}
 	return 0;
 }
 
 int prepare_video_encoder(StreamingContext *output_media) {
+	int ret;
 	output_media->video_avc = avcodec_find_encoder(output_media->video_avs->codecpar->codec_id);
+	if (!output_media->video_avc) {
+		return -1;
+	}
 	output_media->video_avcc = avcodec_alloc_context3(output_media->video_avc);
+	if (!output_media->video_avcc) {
+		return -1;
+	}
 
-	avcodec_parameters_to_context(output_media->video_avcc, output_media->video_avs->codecpar);
+	ret = avcodec_parameters_to_context(output_media->video_avcc, output_media->video_avs->codecpar);
+	if (ret < 0) {
+		return ret;
+	}
 	output_media->video_avcc->time_base = output_media->audio_avs->time_base;
 	output_media->video_avcc->height = output_media->video_avcc->height / SCALER;
 	output_media->video_avcc->width = output_media->video_avcc->width / SCALER;
-
-	avcodec_open2(output_media->video_avcc, output_media->video_avc, NULL);
+	ret = avcodec_open2(output_media->video_avcc, output_media->video_avc, NULL);
+	if (ret < 0) {
+		return ret;
+	}
 	return 0;
 }
 
 int prepare_audio_decoder(StreamingContext *input_media) {
+	int ret;
 	input_media->audio_avc = avcodec_find_decoder(input_media->audio_avs->codecpar->codec_id);
+	if (!input_media->audio_avc) {
+		return -1;
+	}
 	input_media->audio_avcc = avcodec_alloc_context3(input_media->audio_avc);
-	avcodec_parameters_to_context(input_media->audio_avcc, input_media->audio_avs->codecpar);
-	avcodec_open2(input_media->audio_avcc, input_media->audio_avc, NULL);
+	if (!input_media->audio_avcc) {
+		return -1;
+	}
+	ret = avcodec_parameters_to_context(input_media->audio_avcc, input_media->audio_avs->codecpar);
+	if (ret < 0) {
+		return ret;
+	}	
+	ret = avcodec_open2(input_media->audio_avcc, input_media->audio_avc, NULL);
+	if (ret < 0) {
+		return ret;
+	}
 	return 0;
 }
 
 int prepare_audio_encoder(StreamingContext *output_media) {
+	int ret;
 	output_media->audio_avc = avcodec_find_encoder(AV_CODEC_ID_AC3);
+	if (!output_media->video_avc) {
+		return -1;
+	}
 	output_media->audio_avcc = avcodec_alloc_context3(output_media->audio_avc);
+	if (!output_media->video_avcc) {
+		return -1;
+	}
 
 	output_media->audio_avcc->time_base = output_media->audio_avs->time_base;
 	output_media->audio_avcc->sample_fmt = AV_SAMPLE_FMT_FLTP;
@@ -137,7 +171,10 @@ int prepare_audio_encoder(StreamingContext *output_media) {
 	output_media->audio_avcc->channel_layout = AV_CH_LAYOUT_STEREO;
 	output_media->audio_avcc->channels = av_get_channel_layout_nb_channels(output_media->audio_avcc->channel_layout);
 
-	avcodec_open2(output_media->audio_avcc, output_media->audio_avc, NULL);
+	ret = avcodec_open2(output_media->audio_avcc, output_media->audio_avc, NULL);
+	if (ret < 0) {
+		return ret;
+	}
 	return 0;
 }
 
@@ -208,8 +245,6 @@ int transcode_audio(StreamingContext *input_media, StreamingContext *output_medi
 }
 
 int encode_video(StreamingContext *input_media, StreamingContext *output_media, AVFrame *frame, int stream_index, uint64_t *pts_start_from, uint64_t *dts_start_from) {
-	int num_bytes;
-	uint8_t *buffer;
 	if (frame) frame->pict_type = AV_PICTURE_TYPE_NONE;
 	AVPacket *out_pkt = av_packet_alloc();
 	if (!out_pkt) {
@@ -292,7 +327,6 @@ int transcode_video(StreamingContext *input_media, StreamingContext *output_medi
 	return 0;
 }
 
-
 int cut_video(char* input_file, char* output_file, int interval_start, int interval_end) {
 	int ret;
 
@@ -311,7 +345,7 @@ int cut_video(char* input_file, char* output_file, int interval_start, int inter
 		printf("Error: failed to get input stream info");
 		goto end;
 	}
-	
+
 	StreamingContext *output_media = (StreamingContext*) calloc(1, sizeof(StreamingContext));
 	output_media->filename = output_file;
 
@@ -326,11 +360,27 @@ int cut_video(char* input_file, char* output_file, int interval_start, int inter
 		printf("Error: failed to create output media streams\n");
 		goto end;
 	}
-	
-	prepare_video_decoder(input_media);
-	prepare_video_encoder(output_media);
-	prepare_audio_decoder(input_media);
-	prepare_audio_encoder(output_media);
+
+	ret = prepare_video_decoder(input_media); 
+	if (ret < 0) {
+		printf("Error: failed to prepare video decoder\n");
+		goto end;
+	}
+	ret = prepare_video_encoder(output_media);
+	if (ret < 0) {
+		printf("Error: failed to prepare video encoder\n");
+		goto end;
+	}
+	ret = prepare_audio_decoder(input_media);
+	if (ret < 0) {
+		printf("Error: failed to prepare audio decoder\n");
+		goto end;
+	}
+	ret = prepare_audio_encoder(output_media);
+	if (ret < 0) {
+		printf("Error: failed to create output media streams\n");
+		goto end;
+	}
 
 	printf("------------------------------\n");	
 	av_dump_format(input_media->avfc, 0, input_file, 0);
