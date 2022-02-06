@@ -8,6 +8,7 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/common.h"
 #include "libavutil/frame.h"
+#include "libavutil/audio_fifo.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -23,7 +24,7 @@
 
 unsigned int g_interval[2] = {0 , 0};
 
-typedef struct StreamingContext {
+typedef struct StreamingContext { //custom structure to bind formatcontext and its fields
 	AVFormatContext *avfc;
 	AVCodec *video_avc;
 	AVCodec *audio_avc;
@@ -33,9 +34,10 @@ typedef struct StreamingContext {
 	AVCodecContext *audio_avcc;
 	AVCodecParameters *video_avcp;
 	AVCodecParameters *audio_avcp;
+	AVAudioFifo *fifo;
 	int video_index;
 	int audio_index;
-	char *filename;
+	const char *filename;
 } StreamingContext;
 
 static int select_sample_rate(const AVCodec *codec) {
@@ -167,9 +169,11 @@ int prepare_audio_encoder(StreamingContext *output_media) {
 
 	output_media->audio_avcc->time_base = output_media->audio_avs->time_base;
 	output_media->audio_avcc->sample_fmt = AV_SAMPLE_FMT_FLTP;
-	output_media->audio_avcc->sample_rate = select_sample_rate(output_media->audio_avc);
+	output_media->audio_avcc->sample_rate = 48000;
+	select_sample_rate(output_media->audio_avc);
 	output_media->audio_avcc->channel_layout = AV_CH_LAYOUT_STEREO;
 	output_media->audio_avcc->channels = av_get_channel_layout_nb_channels(output_media->audio_avcc->channel_layout);
+	//output_media->audio_avcc->frame_size = 960;	
 
 	ret = avcodec_open2(output_media->audio_avcc, output_media->audio_avc, NULL);
 	if (ret < 0) {
@@ -187,6 +191,17 @@ int encode_audio(StreamingContext *input_media, StreamingContext *output_media, 
 	frame->nb_samples = output_media->audio_avcc->frame_size;
 	frame->format = output_media->audio_avcc->sample_fmt;
 	frame->channel_layout = output_media->audio_avcc->channel_layout;
+	
+	//int ret = av_frame_get_buffer(frame, 0);
+	//AVFrame *out_frame = av_frame_alloc();
+	//out_frame->sample_rate = 48000;
+	//out_frame->nb_samples = output_media->audio_avcc->frame_size;
+	//out_frame->format = output_media->audio_avcc->sample_fmt;
+	//out_frame->channel_layout = output_media->audio_avcc->channel_layout;
+	//int ret = av_frame_get_buffer(out_frame, 0);
+	//out_frame->height = frame->height / SCALER;
+	//out_frame->width = frame->width / SCALER;
+
 	int response = avcodec_send_frame(output_media->audio_avcc, frame);
 	//printf("Send Frame: %d, %s\n",response , av_err2str(response));
 	while (response >= 0) {
@@ -212,7 +227,7 @@ int encode_audio(StreamingContext *input_media, StreamingContext *output_media, 
 		out_pkt->pos = -1;
 
 		out_pkt->stream_index = stream_index;	
-		av_packet_rescale_ts(out_pkt, input_media->audio_avs->time_base, output_media->audio_avs->time_base);
+		//av_packet_rescale_ts(out_pkt, input_media->audio_avs->time_base, output_media->audio_avs->time_base);
 
 		response = av_interleaved_write_frame(output_media->avfc, out_pkt);
 		if (response != 0) { 
@@ -327,16 +342,19 @@ int transcode_video(StreamingContext *input_media, StreamingContext *output_medi
 	return 0;
 }
 
-int cut_video(char* input_file, char* output_file, int interval_start, int interval_end) {
+int cut_video(const char* input_file, const char* output_file, int interval_start, int interval_end) {
 	int ret;
-
 	StreamingContext *input_media = (StreamingContext*) calloc(1, sizeof(StreamingContext));
 	input_media->filename = input_file;
+	input_media->avfc = NULL;
 	input_media->avfc = avformat_alloc_context();
+
+	av_register_all();
+	avcodec_register_all();
 
 	ret = avformat_open_input(&(input_media->avfc), input_media->filename, 0, 0);	
 	if (ret < 0) {
-		printf("Error: failed to open file!: %s", input_file);
+		printf("Error: failed to open file!: %s\n", input_file);
 		goto end;
 	}
 
@@ -348,7 +366,6 @@ int cut_video(char* input_file, char* output_file, int interval_start, int inter
 
 	StreamingContext *output_media = (StreamingContext*) calloc(1, sizeof(StreamingContext));
 	output_media->filename = output_file;
-
 	ret = avformat_alloc_output_context2(&(output_media->avfc), NULL, NULL, output_file);
 	if (ret < 0) {
 		printf("Error: failed to create output context\n");
@@ -469,18 +486,16 @@ int cut_video(char* input_file, char* output_file, int interval_start, int inter
 	printf("------------------------------\n");
 
 end:
-
-	avformat_close_input(&(input_media->avfc));
-
-	/* close output */
-	if (output_media->avfc && !(output_media->avfc->oformat->flags & AVFMT_NOFILE))
-		avio_closep(&output_media->avfc->pb);
-	avformat_free_context(output_media->avfc);
-
 	if (ret < 0 && ret != AVERROR_EOF) {
 		printf("Error occurred: %s\n", av_err2str(ret));
 		return 1;
 	}
+
+	avformat_close_input(&(input_media->avfc));
+	/* close output */
+	if (output_media->avfc && !(output_media->avfc->oformat->flags & AVFMT_NOFILE))
+		avio_closep(&output_media->avfc->pb);
+	avformat_free_context(output_media->avfc);
 
 	return 0;
 }

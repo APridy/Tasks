@@ -8,4 +8,3 @@ all:
 
 clean:
 	rm $(PROGRAM_TARGET) $(OUTPUT)
-
