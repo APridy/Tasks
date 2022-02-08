@@ -5,8 +5,11 @@ RUN apt -y install \
     ffmpeg \
     sudo \
     vim \
+    cmake \
     make \
     gcc \
+    build-essential \
+    pkg-config \
     libavcodec-dev \
     libavformat-dev \
     libavutil-dev \

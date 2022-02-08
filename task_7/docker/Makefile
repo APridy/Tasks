@@ -2,7 +2,7 @@ IMAGE=task_7_image
 CONTAINER=task
 MOUNT_PATH=/home/
 SHELL=/bin/bash
-COMMAND="cd /home; make; ./program"
+COMMAND="cd /home; cmake .; make; ./program"
 
 image:
 	docker build -t $(IMAGE) . 
