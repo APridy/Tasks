@@ -4,6 +4,7 @@
 #include <libavutil/samplefmt.h>
 #include <libavutil/timestamp.h>
 #include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
 #include <libavutil/opt.h>
 #include "libavutil/channel_layout.h"
 #include "libavutil/common.h"
@@ -19,8 +20,6 @@
 #define FILE_PATH "./resources/mando_test.mkv"
 #define OUTPUT_PATH "./output.mkv"
 #define SCALER 2
-#define AUDIO 0
-#define VIDEO 1
 
 unsigned int g_interval[2] = {0 , 0};
 
@@ -39,19 +38,6 @@ typedef struct StreamingContext { //custom structure to bind formatcontext and i
 	int audio_index;
 	const char *filename;
 } StreamingContext;
-
-static int select_sample_rate(const AVCodec *codec) {
-	const int *p;
-	int best_samplerate = 0;
-	if (!codec->supported_samplerates)
-		return 44100;
-	p = codec->supported_samplerates;
-	while (*p) {
-		best_samplerate = FFMAX(*p, best_samplerate);
-		p++;
-	}
-	return best_samplerate;
-}
 
 int create_streams(StreamingContext *input_media, StreamingContext *output_media) {
 	int ret;
@@ -170,10 +156,8 @@ int prepare_audio_encoder(StreamingContext *output_media) {
 	output_media->audio_avcc->time_base = output_media->audio_avs->time_base;
 	output_media->audio_avcc->sample_fmt = AV_SAMPLE_FMT_FLTP;
 	output_media->audio_avcc->sample_rate = 48000;
-	select_sample_rate(output_media->audio_avc);
 	output_media->audio_avcc->channel_layout = AV_CH_LAYOUT_STEREO;
 	output_media->audio_avcc->channels = av_get_channel_layout_nb_channels(output_media->audio_avcc->channel_layout);
-	//output_media->audio_avcc->frame_size = 960;	
 
 	ret = avcodec_open2(output_media->audio_avcc, output_media->audio_avc, NULL);
 	if (ret < 0) {
@@ -188,19 +172,33 @@ int encode_audio(StreamingContext *input_media, StreamingContext *output_media, 
 		return -1;
 	}
 
-	frame->nb_samples = output_media->audio_avcc->frame_size;
-	frame->format = output_media->audio_avcc->sample_fmt;
-	frame->channel_layout = output_media->audio_avcc->channel_layout;
+	//int nb_samples = frame->nb_samples;
+
+	AVFrame *out_frame = av_frame_alloc();
+	out_frame->nb_samples = output_media->audio_avcc->frame_size;
+	out_frame->sample_rate = output_media->audio_avcc->sample_rate;
+	out_frame->format = output_media->audio_avcc->sample_fmt;
+	out_frame->channel_layout = output_media->audio_avcc->channel_layout;
+
+	printf("%d %d %ld %d %d\n", out_frame->nb_samples, out_frame->format, out_frame->channel_layout, out_frame->sample_rate, output_media->audio_avcc->frame_size);
+	printf("%d %d %ld %d %d\n", frame->nb_samples, frame->format, frame->channel_layout, frame->sample_rate, input_media->audio_avcc->frame_size);
+
+	static struct SwrContext *audio_resample_ctx = NULL;
+	audio_resample_ctx = swr_alloc_set_opts(audio_resample_ctx, out_frame->channel_layout, out_frame->format, frame->sample_rate,
+			frame->channel_layout, frame->format, frame->sample_rate, 0, NULL);
 	
-	//int ret = av_frame_get_buffer(frame, 0);
-	//AVFrame *out_frame = av_frame_alloc();
-	//out_frame->sample_rate = 48000;
-	//out_frame->nb_samples = output_media->audio_avcc->frame_size;
-	//out_frame->format = output_media->audio_avcc->sample_fmt;
-	//out_frame->channel_layout = output_media->audio_avcc->channel_layout;
-	//int ret = av_frame_get_buffer(out_frame, 0);
-	//out_frame->height = frame->height / SCALER;
-	//out_frame->width = frame->width / SCALER;
+	if (!audio_resample_ctx) {
+		printf("av_audio_resample_init fail!!!\n");
+		return -1;
+	}
+	swr_init(audio_resample_ctx);
+	
+	//int out_nb_samples = av_rescale_rnd(swr_get_delay(swr, input_media->audio_avcc->sample_rate) + in_num_samples, out_samplerate, in_samplerate, AV_ROUND_UP);
+
+	int out_samples = swr_convert(audio_resample_ctx, (uint8_t **)out_frame->data, 1536, (const uint8_t **)frame->data, 960);
+
+		
+	printf("Out samples: %d\n", out_samples);
 
 	int response = avcodec_send_frame(output_media->audio_avcc, frame);
 	//printf("Send Frame: %d, %s\n",response , av_err2str(response));
@@ -237,25 +235,6 @@ int encode_audio(StreamingContext *input_media, StreamingContext *output_media, 
 
 	av_packet_unref(out_pkt);
 	av_packet_free(&out_pkt);
-	return 0;
-}
-
-int transcode_audio(StreamingContext *input_media, StreamingContext *output_media, AVPacket *pkt, AVFrame *frame, uint64_t *pts_start_from, uint64_t *dts_start_from) {
-	int response = avcodec_send_packet(input_media->audio_avcc, pkt);
-	//printf("Send Packet: %d, %s\n",response , av_err2str(response));
-	while (response >= 0) {
-		response = avcodec_receive_frame(input_media->audio_avcc, frame);
-		//printf("Recieve Frame: %d, %s\n",response , av_err2str(response));
-		if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
-			break;
-		} else if (response < 0) {
-			return response;
-		}
-		if (response >= 0) {
-			if (encode_audio(input_media, output_media, frame, pkt->stream_index, pts_start_from, dts_start_from)) return -1;
-		}
-		av_frame_unref(frame);
-	}
 	return 0;
 }
 
@@ -325,22 +304,35 @@ int encode_video(StreamingContext *input_media, StreamingContext *output_media, 
 	return 0;
 }
 
-int transcode_video(StreamingContext *input_media, StreamingContext *output_media, AVPacket *pkt, AVFrame *frame, uint64_t *pts_start_from, uint64_t *dts_start_from) {
-	int response = avcodec_send_packet(input_media->video_avcc, pkt);
+int transcode_packet(StreamingContext *input_media, StreamingContext *output_media, AVPacket *pkt, AVFrame *frame, uint64_t *pts_start_from, uint64_t *dts_start_from) {	
+	AVCodecContext *avcc;
+	if (input_media->avfc->streams[pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+		avcc = input_media->audio_avcc;	
+	}
+	if (input_media->avfc->streams[pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+		avcc = input_media->video_avcc;
+	}
+	int response = avcodec_send_packet(avcc, pkt);
 	while (response >= 0) {
-		response = avcodec_receive_frame(input_media->video_avcc, frame);
+		response = avcodec_receive_frame(avcc, frame);
 		if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
 			break;
 		} else if (response < 0) {
 			return response;
 		}
 		if (response >= 0) {
-			if (encode_video(input_media, output_media, frame, pkt->stream_index, pts_start_from, dts_start_from)) return -1;
+			if (input_media->avfc->streams[pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+				if (encode_audio(input_media, output_media, frame, pkt->stream_index, pts_start_from, dts_start_from)) return -1;
+			}
+			if (input_media->avfc->streams[pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+				if (encode_video(input_media, output_media, frame, pkt->stream_index, pts_start_from, dts_start_from)) return -1;
+			}
 		}
 		av_frame_unref(frame);
 	}
 	return 0;
 }
+
 
 int cut_video(const char* input_file, const char* output_file, int interval_start, int interval_end) {
 	int ret;
@@ -465,14 +457,8 @@ int cut_video(const char* input_file, const char* output_file, int interval_star
 			//printf("pts_start_from: %s\n", av_ts2str(pts_start_from[pkt->stream_index]));
 		}
 
-		if (in_stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-			//if (transcode_audio(input_media, output_media, pkt, frame, pts_start_from, dts_start_from)) return -1;
-			av_packet_unref(pkt);
-		}
-		if (in_stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-			if (transcode_video(input_media, output_media, pkt, frame, pts_start_from, dts_start_from)) return -1;
-			av_packet_unref(pkt);
-		}
+		if (transcode_packet(input_media, output_media, pkt, frame, pts_start_from, dts_start_from)) return -1;
+		av_packet_unref(pkt);
 
 	}
 

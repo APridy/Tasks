@@ -14,6 +14,7 @@ RUN apt -y install \
     libavformat-dev \
     libavutil-dev \
     libswscale-dev \
+    libswresample-dev \
     libz-dev
 
 ENV LANG en_US.UTF-8

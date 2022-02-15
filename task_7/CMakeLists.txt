@@ -7,6 +7,7 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libavformat
     libavcodec
     libswscale
+    libswresample
     libavutil
 )
 
@@ -17,4 +18,5 @@ target_link_libraries( program
     avcodec
     avutil
     swscale
+    swresample
 )
